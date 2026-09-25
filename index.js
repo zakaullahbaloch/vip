@@ -751,7 +751,7 @@ function GetSYLoVe(love) {
 function MainSYLoVe(name, uptime, love, SABIR7718, SABANA) {
     const status = GetSYLoVe(love);
 
-    return `<blockquote><b><tg-emoji emoji-id="5197429921634346862">✨</tg-emoji> R A J U -  V I P B O T<tg-emoji emoji-id="5352590867947349905">💋</tg-emoji></b></blockquote>
+    return `<blockquote><b><tg-emoji emoji-id="5197429921634346862">✨</tg-emoji> S H A H Z U -  V I P B O T<tg-emoji emoji-id="5352590867947349905">💋</tg-emoji></b></blockquote>
 <blockquote><b>
 <tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> Developer : ${SABANA}<tg-emoji emoji-id="5361707636112778846">🤍</tg-emoji>
 <tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> System : ${status}<tg-emoji emoji-id="6323535119323761554">☠</tg-emoji>
@@ -999,7 +999,7 @@ SYLoVe(['start', 'menu'], async (msg) => {
         await S7.deleteMessage(chatId, sticker.message_id).catch(() => {});
 
         const captionText = `
-<blockquote><b><tg-emoji emoji-id="5197429921634346862">✨</tg-emoji>R A J U -  V I P B O T</b></blockquote>
+<blockquote><b><tg-emoji emoji-id="5197429921634346862">✨</tg-emoji>S H A H Z U -  V I P B O T</b></blockquote>
 <blockquote><b><tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> Developer : ${botConfig.ownerContact}<tg-emoji emoji-id="5361707636112778846">🤍</tg-emoji>
 <tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> System : ${status}<tg-emoji emoji-id="6323535119323761554">☠</tg-emoji>
 <tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> Platform : Telegram<tg-emoji emoji-id="5330237710655306682">📱</tg-emoji>
