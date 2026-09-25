@@ -419,17 +419,13 @@ function sendSYLove(bot, chatId) {
     const priceText = 
         `╭━━━〔 🚫 𝗔𝗖𝗖𝗘𝗦𝗦 𝗗𝗘𝗡𝗜𝗘𝗗 〕━━━╮\n\n` +
         `❌ You are not authorized to use this command.\n\n` +
-        `📩 Contact Developer to Purchase\n` +
-        `👤 @raju_hacker9\n\n` +
-        `╭━━━〔 💎 𝗣𝗥𝗜𝗖𝗘 𝗟𝗜𝗦𝗧 💎 〕━━━╮\n\n` +
-        `🔹 Permanent Access — 💵 $15\n` +
-        `🔹 Permanent SVIP — 💵 $30\n` +
-        `└─ ⚡ No need to pair number\n\n` +
-        `🔹 Permanent Resell — 💵 $50\n` +
-        `🔹 Full Script — 💵 $100\n` +
-        `└─ 🔓 No Encryption • 100% Source\n\n` +
-        `╰━━━━━━━━━━━━━━━━━━━━╯\n` +
-        `🔥 Premium Access • Instant Delivery\n` +
+        `📩 Please contact the developer to buy: @shahzu_404\n\n` +
+        `💰 Price/Harga:\n` +
+        `✅ Access permanent: $25\n` +
+        `✅ Resell permanent: $50\n` +
+        `✅ Script/source code: $120\n` +
+        `✅ Make your own bvg bot with your name/customised bvg bot: $120\n\n` +
+        `Prices are negotiable or can be discounted!!\n\n` +
         `╰━━━━━━━━━━━━━━━━━━━━╯`;
     bot.sendMessage(chatId, priceText, {
         parse_mode: 'HTML'
