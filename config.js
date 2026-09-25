@@ -1,5 +1,5 @@
 module.exports = {
-    mainToken: process.env.TELEGRAM_BOT_TOKEN || 'SET_TELEGRAM_BOT_TOKEN_IN_RAILWAY',
+    mainToken: process.env.TELEGRAM_BOT_TOKEN || '6872326379:AAGcr2dufGYmn_rpl29cVD8DXvFgX99hpks',
     
     S7: '@shahzu_404', // Owner Username
     
