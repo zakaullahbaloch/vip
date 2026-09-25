@@ -95,12 +95,9 @@ function log(type, category, ...message) {
 
 // Clear Ok SY Moyna 🥰
 
-// Auto-restart agendado
-// [PERF] Auto-restart increased to 60 min to reduce downtime, only if needed
-setTimeout(() => {
-  log('info','SYSTEM','Scheduled restart after 60min');
-  process.exit(0);
-}, 60 * 60 * 1000); // 60 minutes
+// Railway par process ko continuously run karne dein.
+// Scheduled process.exit() remove kiya gaya hai, warna bot 60 minutes baad
+// normal exit ke saath band ho jata tha aur Railway "Run Completed" dikhata tha.
 
 const LoveDir = './Love';
 if (!fs.existsSync(LoveDir)) {
