@@ -743,22 +743,20 @@ function GetSYLoVe(love) {
 
 function MainSYLoVe(name, uptime, love, SABIR7718, SABANA) {
     const status = GetSYLoVe(love);
+    return `<b>✨ S H A H Z U -  V I P B O T 💋</b>
 
-    return `<blockquote><b><tg-emoji emoji-id="5197429921634346862">✨</tg-emoji> S H A H Z U -  V I P B O T<tg-emoji emoji-id="5352590867947349905">💋</tg-emoji></b></blockquote>
-<blockquote><b>
-<tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> Developer : ${SABANA}<tg-emoji emoji-id="5361707636112778846">🤍</tg-emoji>
-<tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> System : ${status}<tg-emoji emoji-id="6323535119323761554">☠</tg-emoji>
-<tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> Platform : Telegram<tg-emoji emoji-id="5330237710655306682">📱</tg-emoji>
-<tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> Online : ${uptime}<tg-emoji emoji-id="5456140674028019486">✨</tg-emoji>
-</b></blockquote>`;
+<b>✨ Developer :</b> ${SABANA} 🤍
+<b>✨ System :</b> ${status} ☠
+<b>✨ Platform :</b> Telegram 📱
+<b>✨ Online :</b> ${uptime} ✨`;
 }
-function BvgSYLoVe(cleanTarget) {
+function BvgSYLoVe(cleanTarget, senderNum) {
     return `
-⬡═―—⊱ [ 𝗡𝗢𝗧𝗜𝗙𝗜𝗖𝗔𝗧𝗜𝗢𝗡 ] ⊰―—═⬡
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ... <tg-emoji emoji-id="5352787233852116219">🪙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> ᴛʜᴇ ʙᴏᴛ ɪs ᴄᴜʀʀᴇɴᴛʟʏ sᴇɴᴅɪɴɢ ʙᴜɢ <tg-emoji emoji-id="5352590867947349905">💋</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> Target : ${cleanTarget} <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
-———————————————————————————`;
+┌──────┤ NOTIFICATION ├──────┐
+│➻ Sent bvg to 👇
+│➻ Target: ${cleanTarget}
+│➻ From: ${senderNum || 'unknown'}
+└────────────────────────┘`;
 }
 
 function startSYloveBot(token) {
@@ -988,32 +986,31 @@ SYLoVe(['start', 'menu'], async (msg) => {
         'CAACAgUAAxkBAAEhJBdqbV5tQEackJRmNQnQys2TP8fljwACkRYAAvDBAVYExm1e84EYcz0E'
     );
 
-    setTimeout(async () => {
-        await S7.deleteMessage(chatId, sticker.message_id).catch(() => {});
+                setTimeout(async () => {
+            await S7.deleteMessage(chatId, sticker.message_id).catch(() => {});
 
-        const captionText = `
-<blockquote><b><tg-emoji emoji-id="5197429921634346862">✨</tg-emoji>S H A H Z U -  V I P B O T</b></blockquote>
-<blockquote><b><tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> Developer : ${botConfig.ownerContact}<tg-emoji emoji-id="5361707636112778846">🤍</tg-emoji>
-<tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> System : ${status}<tg-emoji emoji-id="6323535119323761554">☠</tg-emoji>
-<tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> Platform : Telegram<tg-emoji emoji-id="5330237710655306682">📱</tg-emoji>
-<tg-emoji emoji-id="4918408122868958076">✨</tg-emoji> Online : ${uptime}<tg-emoji emoji-id="5456140674028019486">✨</tg-emoji>
-</b></blockquote>
-<blockquote><b><tg-emoji emoji-id="5433758796289685818">👑</tg-emoji>Click The Buttons Bellow</b></blockquote>`;
+            const captionText = `<b>✨ S H A H Z U -  V I P B O T</b>
 
-        S7.sendPhoto(chatId, botConfig.logo, {
-            caption: captionText,
-            parse_mode: 'HTML',
-            ...SABIR7718
-        }).catch(() => {
-            S7.sendMessage(chatId, captionText, {
+<b>✨ Developer :</b> ${botConfig.ownerContact} 🤍
+<b>✨ System :</b> ${status} ☠
+<b>✨ Platform :</b> Telegram 📱
+<b>✨ Online :</b> ${uptime} ✨
+
+<b>👑 Click The Buttons Bellow</b>`;
+
+            S7.sendPhoto(chatId, botConfig.logo, {
+                caption: captionText,
                 parse_mode: 'HTML',
                 ...SABIR7718
+            }).catch(() => {
+                S7.sendMessage(chatId, captionText, {
+                    parse_mode: 'HTML',
+                    ...SABIR7718
+                });
             });
-        });
-    }, 1000);
-});
-
-
+        }, 1000);
+    });
+  
         SYLoVe('setbot', async (msg) => {
             const chatId = msg.chat.id.toString();
             if (tokenData && tokenData.owner !== chatId) {
@@ -3775,59 +3772,69 @@ SYLoVe(['iosinvisible', 'ioshard'], async (msg) => {
             };
 
 
-            if (data === 'misc_menu') {
-            const chatId = query.message.chat.id;
-            const userId = query.from.id.toString();
-            if (!LoveGlobalState(userId, chatId)) {
-             return sendSYLove(S7, chatId);
+                        if (data === 'misc_menu') {
+                const chatId = query.message.chat.id;
+                const userId = query.from.id.toString();
+                if (!LoveGlobalState(userId, chatId)) {
+                    return sendSYLove(S7, chatId);
                 }
                 const love = query.from.id.toString();
-                const miscText = MainSYLoVe(name, uptime, love, botConfig.botName, botConfig.ownerContact) + `<blockquote><b><tg-emoji emoji-id="5231200819986047254">📊</tg-emoji> Misc Menu</b></blockquote>
-<blockquote><b><tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /reqpair number <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /delpair number <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /listsender — sender stats <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /myaccess — your tier <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /addprem ID 30d <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /delprem ID <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /addsvip ID 30d 💎 <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /delsvip ID <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /addgprem groupId 30d <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /addgsvip groupId 30d <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /addresell ID <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /delresell ID <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /addtoken token <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /deltoken token <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /listprem /listsvip /listgprem <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /listuser <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /mytoken <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji> 
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /broadcast <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /state 0 | 1 /global on/off <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji></b></blockquote>
+                const miscText = MainSYLoVe(name, uptime, love, botConfig.botName, botConfig.ownerContact) + `<b>📊 Misc Menu</b>
+
+➡️ /reqpair number ⚙
+➡️ /delpair number ⚙
+➡️ /listsender — sender stats ⚙
+➡️ /myaccess — your tier ⚙
+➡️ /addprem ID 30d ⚙
+➡️ /delprem ID ⚙
+➡️ /addsvip ID 30d 💎 ⚙
+➡️ /delsvip ID ⚙
+➡️ /addgprem groupId 30d ⚙
+➡️ /addgsvip groupId 30d ⚙
+➡️ /addresell ID ⚙
+➡️ /delresell ID ⚙
+➡️ /addtoken token ⚙
+➡️ /deltoken token ⚙
+➡️ /listprem /listsvip /listgprem ⚙
+➡️ /listuser ⚙
+➡️ /mytoken ⚙
+➡️ /broadcast ⚙
+➡️ /state 0 | 1  /global on/off ⚙`;
+                S7edit(miscText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
+            }
                 `;
                 S7edit(miscText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
             }
 
-            if (data === 'bug_menu') {
-            const chatId = query.message.chat.id;
-            const userId = query.from.id.toString();
-            if (!LoveGlobalState(userId, chatId)) {
-             return sendSYLove(S7, chatId);
-                }
-                const love = query.from.id.toString();
-                const bugText = MainSYLoVe(name, uptime, love, botConfig.botName, botConfig.ownerContact) + `<blockquote><b><tg-emoji emoji-id="5454008471873669821">🤖</tg-emoji> Bug Android (SVIP=Global Sender)</b></blockquote>
-<blockquote><b><tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /forceclose num time <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /forceinfinity num time <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /forceperma num time <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /forcehard num time <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /delayinfinite num time <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji></b></blockquote>
-<blockquote><b><tg-emoji emoji-id="5235886826874492142">🍎</tg-emoji> Bug iOS</b></blockquote>
-<blockquote><b><tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /ioshard number time <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /iosinvisible number time <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji></b></blockquote>
-<blockquote><b><tg-emoji emoji-id="5393579201141946670">🤩</tg-emoji> Group Tools</b></blockquote>
-<blockquote><b><tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /xgroup groupid <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /listgc <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /listsender — global pool <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
-<tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /groupid link <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji></b></blockquote>
-<blockquote><b>💎 SVIP</b> → use Global Sender without pairing\n<b>🏆 Group Premium</b> → bot active in group using global senders</blockquote>`;
+                        if (data === 'bug_menu') {
+                const chatId2 = query.message.chat.id;
+                const userId2 = query.from.id.toString();
+                if (!LoveGlobalState(userId2, chatId2)) return sendSYLove(S7, chatId2);
+                const love2 = query.from.id.toString();
+                const bugText = MainSYLoVe(name, uptime, love2, botConfig.botName, botConfig.ownerContact) + `<b>🤖 Bug Android (SVIP = Global Sender)</b>
+
+➡️ /forceclose num time
+➡️ /forceinfinity num time
+➡️ /fc-perma num time
+➡️ /forcehard num time
+➡️ /delayinfinite num time
+
+<b>🍎 Bug iOS</b>
+
+➡️ /ioshard number time
+➡️ /iosinvisible number time
+
+<b>🤩 Group Tools</b>
+
+➡️ /xgroup groupid
+➡️ /listgc
+➡️ /listsender — global pool
+➡️ /groupid link
+
+<b>💎 SVIP</b> → use Global Sender without pairing
+<b>🏆 Group Premium</b> → bot active in group using global senders`;
+                S7edit(bugText, { chat_id: chatId2, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
+                        }
                 S7edit(bugText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
                 }
                 
