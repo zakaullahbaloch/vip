@@ -1385,7 +1385,7 @@ SYLoVe(['ios-gc', 'andro-gc', 'gckiller', 'groupui'], async (msg) => {
 });
 
 
-SYLoVe(['unblockcrash', 'pendingv2', 'pendingmix'], async (msg) => {
+SYLoVe(['shahzucrash', 'unblockcrash', 'pendingv2', 'pendingmix'], async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from.id.toString();
     const args = msg.text.split(' ');
