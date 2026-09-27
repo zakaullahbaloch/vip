@@ -3,7 +3,7 @@ const SY = require('node-telegram-bot-api');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');
-const { default: makeWASocket, useMultiFileAuthState, delay, DisconnectReason, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, delay, DisconnectReason, makeCacheableSignalKeyStore, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 
 console.clear();
@@ -166,8 +166,10 @@ async function StartLovingSY(chatId, number, S7) {
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(authPath);
+    const { version } = await fetchLatestBaileysVersion();
 
     const SYxS7 = makeWASocket({
+        version,
         logger: pino({ level: 'silent' }),
         printQRInTerminal: false,
         auth: {
@@ -220,9 +222,11 @@ async function StartLovingSY(chatId, number, S7) {
                 await S7.sendMessage(chatId, `❌ <b>WhatsApp Logged Out</b>\nNumber: ${number}\nSession has been terminated. Please use /reqpair again.`, { parse_mode: 'HTML' }).catch(() => {});
                 const SYPaTH = `./Love/auth/${chatId}/${number}`;
                 if (fs.existsSync(SYPaTH)) fs.rmSync(SYPaTH, { recursive: true, force: true });
-            } else if (reason === DisconnectReason.timedOut) {
+            } else if (reason === 405 || reason === DisconnectReason.connectionClosed || reason === DisconnectReason.timedOut) {
                 log('error', 'WhatsApp', `Timed out for ${number}. Reconnecting...`);
-                StartLovingSY(chatId, number, S7);
+                setTimeout(() => StartLovingSY(chatId, number, S7).catch((err) => {
+                    log('error', 'WhatsApp', `Reconnect failed for ${number}: ${err.message}`);
+                }), 5000);
             } else {
                 await S7.sendMessage(chatId, `⚠️ <b>Connection Closed</b>\nNumber: ${number}\nReason: ${reason}`, { parse_mode: 'HTML' }).catch(() => {});
             }
