@@ -22,24 +22,31 @@ if (!fs.existsSync(LoveDir)) fs.mkdirSync(LoveDir);
 const { spawn } = require('child_process');
 const activeBots = {};
 const startTime = Date.now();
-const LoveLogo = config.logo;
+const LoveLogo = 'https://files.manuscdn.com/user_upload_by_module/session_file/310519663950805814/hOyayfvukVhfTZRC.png';
 const waSessions = {};
 const unauthorized = Buffer.from('8J+aqyBZb3UgYXJlIG5vdCBhdXRob3JpemVkIHRvIHVzZSB0aGlzIGNvbW1hbmQu', 'base64').toString();
 
 // SY Loves Here 🤗❤️‍🩹
 const SYLoves = `./SY/S7/`;
-const CrashLogic = require(SYLoves + 'crashfinity');
-const stickerLogic = require(SYLoves + 'StickerCrash');
-const CallLogic = require(SYLoves + 'CallCrash');
-const XLogic = require(SYLoves + 'Xdelay');
-const IosLogic = require(SYLoves + 'IosInvisible');
-const XgcLogic = require(SYLoves + 'Xgc');
-const xbetainvisLogic = require(SYLoves + 'xbetainvis');
-const testlogic = require(SYLoves + 'test');
-// ADDED NEW MODULES
-const crashjamLogic = require(SYLoves + 'crashjam');
-const killsystemLogic = require(SYLoves + 'killsystem');
-const gcFrzLogic = require(SYLoves + 'gcFrz');
+const disabledAction = async () => {
+    throw new Error('This action is disabled for safety.');
+};
+const CrashLogic = { crashfinity: disabledAction };
+const stickerLogic = { StickerCrash: disabledAction };
+const CallLogic = { CallCrash: disabledAction };
+const XLogic = { Xdelay: disabledAction };
+const IosLogic = { IosInvisible: disabledAction };
+const XgcLogic = { Xgc: disabledAction };
+const testlogic = { test: disabledAction };
+const azzixdestroyedLogic = { crashfinity: disabledAction };
+const bahirava1Logic = { bahirava1: disabledAction };
+const bahirava2Logic = { bahiravav2: disabledAction, bahirava2: disabledAction };
+const bahiravaiosLogic = { bahiravaios: disabledAction };
+const android1Logic = { android1: disabledAction };
+const android2Logic = { android2: disabledAction };
+const android3Logic = { android3: disabledAction };
+const android4Logic = { android4: disabledAction };
+const android5Logic = { android5: disabledAction };
 
 const colors = {
     reset: "\x1b[0m", gray: "\x1b[90m", blue: "\x1b[34m", green: "\x1b[32m",
