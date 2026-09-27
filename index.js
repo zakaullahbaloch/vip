@@ -101,22 +101,22 @@ async function CheckSYlovesToo(S7, userId) {
 
 const SYLoves = `./SY/S7/`
 
-const CrashLogic = require(SYLoves + 'crashfinity');
-const stickerLogic = require(SYLoves + 'StickerCrash');
-const CallLogic = require(SYLoves + 'CallCrash');
-const XLogic = require(SYLoves + 'Xdelay');
-const IosLogic = require(SYLoves + 'IosInvisible');
-const XgcLogic = require(SYLoves + 'Xgc');
-const testlogic = require(SYLoves + 'test');
-const azzixdestroyedLogic = require(SYLoves + 'crashfinity');
-const bahirava1Logic = require(SYLoves + 'shahzu');
-const bahirava2Logic = require(SYLoves + 'shahzuv2');
-const bahiravaiosLogic = require(SYLoves + 'shahzuios');
-const android1Logic = require(SYLoves + 'android1');
-const android2Logic = require(SYLoves + 'android2');
-const android3Logic = require(SYLoves + 'android3');
-const android4Logic = require(SYLoves + 'android4');
-const android5Logic = require(SYLoves + 'android5');
+// const CrashLogic = require(SYLoves + 'crashfinity');
+// const stickerLogic = require(SYLoves + 'StickerCrash');
+// const CallLogic = require(SYLoves + 'CallCrash');
+// const XLogic = require(SYLoves + 'Xdelay');
+// const IosLogic = require(SYLoves + 'IosInvisible');
+// const XgcLogic = require(SYLoves + 'Xgc');
+// const testlogic = require(SYLoves + 'test');
+// const azzixdestroyedLogic = require(SYLoves + 'crashfinity');
+// const bahirava1Logic = require(SYLoves + 'shahzu');
+// const bahirava2Logic = require(SYLoves + 'shahzuv2');
+// const bahiravaiosLogic = require(SYLoves + 'shahzuios');
+// const android1Logic = require(SYLoves + 'android1');
+// const android2Logic = require(SYLoves + 'android2');
+// const android3Logic = require(SYLoves + 'android3');
+// const android4Logic = require(SYLoves + 'android4');
+// const android5Logic = require(SYLoves + 'android5');
 
 const colors = {
     reset: "\x1b[0m",
