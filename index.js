@@ -1384,7 +1384,7 @@ SYLoVe(['ios-gc', 'andro-gc', 'gckiller', 'groupui'], async (msg) => {
     }
 });
 
-
+/*
 SYLoVe(['shahzucrash', 'unblockcrash', 'pendingv2', 'pendingmix'], async (msg) => {
     const chatId = msg.chat.id.toString();
     const userId = msg.from.id.toString();
@@ -1471,7 +1471,7 @@ SYLoVe(['shahzucrash', 'unblockcrash', 'pendingv2', 'pendingmix'], async (msg) =
         S7.sendMessage(chatId, `❌ Error: ${err.message}`);
     }
 });
-
+*/
 
 SYLoVe('crash-ios', async (msg) => {
     const chatId = msg.chat.id.toString();
