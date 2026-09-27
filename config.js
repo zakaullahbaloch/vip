@@ -12,5 +12,5 @@ module.exports = {
     
     bot: 'SHAHZU-VIP-BUG', // Bot name 
     
-    logo: './SY/Loves.jpg' // Bot logo path or URL
+    logo: '.https://files.manuscdn.com/user_upload_by_module/session_file/310519663950805814/hOyayfvukVhfTZRC.png' // Bot logo path or URL
 };
