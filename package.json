@@ -12,7 +12,6 @@
   "author": "shahzu_404 (VOIDSEC)",
   "license": "MIT",
   "dependencies": {
-    "@shahzu_404/log": "latest",
     "@whiskeysockets/baileys": "7.0.0-rc13",
     "dotenv": "^17.4.2",
     "node-cache": "^5.1.2",
