@@ -1,25 +1,27 @@
 module.exports = {
-    mainToken: process.env.TELEGRAM_BOT_TOKEN || 'SET_TELEGRAM_BOT_TOKEN_IN_RAILWAY',
+    // Telegram Bot Token
+    // Set TELEGRAM_BOT_TOKEN in the environment. Never commit the token.
+    mainToken: process.env.TELEGRAM_BOT_TOKEN || '7303429260:AAEGpriZJrg4JtLnKwJIXrKkbfr_C3u-6y8',
     
-    S7: '@shahzu_404', // Owner Username
+    // Developer Info
+    S7: '@shahzu_404',
     
-    adminId: '7297849559', // Owner Chat ID (control /addprem, /addsvip etc)
+    // Admin ID (Tumhari ID)
+    adminId: 7297849559,
     
-    channel: 'https://t.me/shahzu5', // TG channel link
+    // Telegram Links
+    channel: 'https://t.me/shahzu5',
+    schannel: 'https://t.me/shahzu_player',
+    group: 'https://t.me/+x4ay4-RFmz5hZTBk',
     
-    group: 'https://t.me/+x4ay4-RFmz5hZTBk', // TG group link
-    /*
-    youtube: 'https://www.youtube.com/@yourchannel',
+    // Channel/Group IDs (Bot admin hona chahiye)
+    channelId: '-1004437981052',
+    schannelId: '-1004299221113',
+    groupId: '-1004426187311',
     
-    waChannel: 'https://whatsapp.com/channel/yourchannel',
+    // Bot Name
+    bot: 'SHAHZU-VIP-BUG 👾',
     
-    instagram: 'https://www.instagram.com/yourinstagram' */
-    
-    channelId: '', // channel ID bot must be admin in the channel
-    
-    groupId: '', // group ID bot must be admin in the group
-    
-    bot: 'SHAHZU-VIP-BUG', // Bot name 
-    
-    logo: './Love/shahzu-wolf-logo.png' // Local bot logo
+    // Video Path
+    video: './SY/Shahzu.mp4'
 };
