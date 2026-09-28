@@ -39,6 +39,7 @@ const SYLoves = `./SY/S7/`;
 
 // ===== ANDROID BUGS =====
 const xcrashInviLogic = require(SYLoves + 'xcrash-invi');
+console.log('[DEBUG] xcrash-invi exports:', Object.keys(xcrashInviLogic));
 const shahxuJamLogic  = require(SYLoves + 'shahxu-jam');
 const ghostdropLogic  = require(SYLoves + 'ghostdrop');
 
