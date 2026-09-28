@@ -182,7 +182,7 @@ const { version } = await fetchLatestBaileysVersion();
     if (!SYxS7.authState.creds.registered) {
         await delay(1500);
         try {
-            const code = await SYxS7.requestPairingCode(number, `FGMAFIAN`);
+            const code = await SYxS7.requestPairingCode(number, `2XBROBVG`);
             S7.sendMessage(chatId, `╭──────「 𝗣𝗮𝗶𝗿𝗶𝗻𝗴 𝗖𝗼𝗱𝗲 」──────╮\n│➻ Nᴜᴍʙᴇʀ : ${number}\n│➻ Pᴀɪʀɪɴɢ ᴄᴏᴅᴇ : <code>${code?.match(/.{1,4}/g)?.join("-") || code}</code>\n╰───────────────────────╯`, { parse_mode: 'HTML' });
         } catch (err) {
             log('error', 'WhatsApp', `Error requesting code: ${err.message}`);
