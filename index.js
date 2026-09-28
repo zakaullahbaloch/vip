@@ -167,38 +167,70 @@ async function StartLovingSY(chatId, number, S7) {
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(authPath);
-const { version } = await fetchLatestBaileysVersion();
+    const { version } = await fetchLatestBaileysVersion();
+    log('info', 'WhatsApp', `Baileys version: ${version.join('.')}`);
+
     const SYxS7 = makeWASocket({
+        version,                                    // ← FIX #1: pass version
         logger: pino({ level: 'silent' }),
         printQRInTerminal: false,
         auth: {
             creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+            keys: makeCacheableSignalKeyStore(
+                state.keys,
+                pino({ level: 'fatal' }).child({ level: 'fatal' })
+            ),
         },
         browser: ['Mac OS', 'Safari', '10.15.7'],
-        markOnlineOnConnect: true
+        markOnlineOnConnect: false,                 // ← FIX: pairing ke waqt false
+        syncFullHistory: false,
+        generateHighQualityLinkPreview: false,
     });
 
-    if (!SYxS7.authState.creds.registered) {
-        await delay(1500);
-        try {
-            const code = await SYxS7.requestPairingCode(number, `2XBROBVG`);
-            S7.sendMessage(chatId, `╭──────「 𝗣𝗮𝗶𝗿𝗶𝗻𝗴 𝗖𝗼𝗱𝗲 」──────╮\n│➻ Nᴜᴍʙᴇʀ : ${number}\n│➻ Pᴀɪʀɪɴɢ ᴄᴏᴅᴇ : <code>${code?.match(/.{1,4}/g)?.join("-") || code}</code>\n╰───────────────────────╯`, { parse_mode: 'HTML' });
-        } catch (err) {
-            log('error', 'WhatsApp', `Error requesting code: ${err.message}`);
-        }
-    }
+    // Pairing code request — sirf ek baar
+    let pairingRequested = false;
 
     SYxS7.ev.on('creds.update', saveCreds);
 
-    SYxS7.ev.on("connection.update", async (update) => {
-        const { connection, lastDisconnect } = update;
+    SYxS7.ev.on('connection.update', async (update) => {
+        const { connection, lastDisconnect, qr } = update;
 
-        if (connection === 'connecting') {
-            log('info', 'WhatsApp', `Connecting: ${number}`);
+        // FIX #2: 'connecting' pe pairing code maango, socket ready hone ke baad
+        if (connection === 'connecting' && !SYxS7.authState.creds.registered && !pairingRequested) {
+            pairingRequested = true;
+            await delay(1500);
+            try {
+                const cleanNum = number.replace(/[^0-9]/g, '');
+                const code = await SYxS7.requestPairingCode(cleanNum, '2XBROBVG');
+                const formatted = code?.match(/.{1,4}/g)?.join('-') || code;
+                log('success', 'WhatsApp', `Pairing code for ${cleanNum}: ${formatted}`);
+                await S7.sendMessage(
+                    chatId,
+                    `╭──────「 𝗣𝗮𝗶𝗿𝗶𝗻𝗴 𝗖𝗼𝗱𝗲 」──────╮\n` +
+                    `│➻ Nᴜᴍʙᴇʀ : ${cleanNum}\n` +
+                    `│➻ Pᴀɪʀɪɴɢ ᴄᴏᴅᴇ : <code>${formatted}</code>\n` +
+                    `╰───────────────────────╯\n\n` +
+                    `<b>How to use:</b>\n` +
+                    `1. Open WhatsApp on that phone\n` +
+                    `2. Settings → Linked Devices → Link a Device\n` +
+                    `3. Tap "Link with phone number instead"\n` +
+                    `4. Enter the code above`,
+                    { parse_mode: 'HTML' }
+                );
+            } catch (err) {
+                pairingRequested = false; // allow retry
+                log('error', 'WhatsApp', `Pairing code request failed: ${err.message}`);
+                await S7.sendMessage(
+                    chatId,
+                    `❌ <b>Pairing Code Failed</b>\n` +
+                    `Number: ${number}\n` +
+                    `Reason: <code>${err.message}</code>`,
+                    { parse_mode: 'HTML' }
+                ).catch(() => {});
+            }
         }
 
-        if (connection === "open") {
+        if (connection === 'open') {
             log('success', 'WhatsApp', `Connected: ${number}`);
             if (!waSessions[chatId]) waSessions[chatId] = [];
             waSessions[chatId].push({ sock: SYxS7, num: number });
@@ -206,15 +238,18 @@ const { version } = await fetchLatestBaileysVersion();
                 await S7.sendMessage(chatId, `✅ <b>WhatsApp Connected!</b>\nNumber: ${number}.`, { parse_mode: 'HTML' }).catch(() => {});
             }
         }
-        if (connection === "close") {
+
+        if (connection === 'close') {
             if (waSessions[chatId]) {
                 waSessions[chatId] = waSessions[chatId].filter(s => s.num !== number);
             }
 
-            let reason = lastDisconnect?.error?.output?.statusCode;
+            const reason = lastDisconnect?.error?.output?.statusCode;
             log('error', 'WhatsApp', `Connection closed for ${number}. Reason: ${reason}`);
+
             if (reason === DisconnectReason.restartRequired || reason === DisconnectReason.connectionLost) {
                 log('info', 'WhatsApp', `Restarting/Reconnecting session for ${number}...`);
+                pairingRequested = false;
                 StartLovingSY(chatId, number, S7);
             } else if (reason === DisconnectReason.loggedOut || reason === 401) {
                 log('error', 'WhatsApp', `Session for ${number} is permanently LOGGED OUT.`);
@@ -222,17 +257,15 @@ const { version } = await fetchLatestBaileysVersion();
                 const SYPaTH = `./Love/auth/${chatId}/${number}`;
                 if (fs.existsSync(SYPaTH)) fs.rmSync(SYPaTH, { recursive: true, force: true });
             } else if (
-    reason === 405 ||
-    reason === DisconnectReason.connectionClosed ||
-    reason === DisconnectReason.timedOut
-) {
-    log('error', 'WhatsApp', `Connection closed for ${number}. Reconnecting in 5 seconds...`);
-
-    setTimeout(() => StartLovingSY(chatId, number, S7).catch((err) => {
-        log('error', 'WhatsApp', `Reconnect failed for ${number}: ${err.message}`);
-    }), 5000);
-} else {
-
+                reason === 405 ||
+                reason === DisconnectReason.connectionClosed ||
+                reason === DisconnectReason.timedOut
+            ) {
+                log('error', 'WhatsApp', `Connection closed for ${number}. Reconnecting in 5 seconds...`);
+                setTimeout(() => StartLovingSY(chatId, number, S7).catch((err) => {
+                    log('error', 'WhatsApp', `Reconnect failed for ${number}: ${err.message}`);
+                }), 5000);
+            } else {
                 await S7.sendMessage(chatId, `⚠️ <b>Connection Closed</b>\nNumber: ${number}\nReason: ${reason}`, { parse_mode: 'HTML' }).catch(() => {});
             }
         }
