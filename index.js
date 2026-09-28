@@ -3,7 +3,15 @@ const SY = require('node-telegram-bot-api');
 const fs = require('fs');
 const path = require('path');
 const config = require('./config');
-const { default: makeWASocket, useMultiFileAuthState, delay, DisconnectReason, makeCacheableSignalKeyStore } = require('@whiskeysockets/baileys');
+const {
+    default: makeWASocket,
+    useMultiFileAuthState,
+    delay,
+    DisconnectReason,
+    makeCacheableSignalKeyStore,
+    fetchLatestBaileysVersion
+} = require('@whiskeysockets/baileys');
+
 const pino = require('pino');
 
 console.clear();
@@ -159,7 +167,7 @@ async function StartLovingSY(chatId, number, S7) {
     }
 
     const { state, saveCreds } = await useMultiFileAuthState(authPath);
-
+const { version } = await fetchLatestBaileysVersion();
     const SYxS7 = makeWASocket({
         logger: pino({ level: 'silent' }),
         printQRInTerminal: false,
