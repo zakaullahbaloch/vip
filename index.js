@@ -221,10 +221,18 @@ const { version } = await fetchLatestBaileysVersion();
                 await S7.sendMessage(chatId, `❌ <b>WhatsApp Logged Out</b>\nNumber: ${number}\nSession has been terminated. Please use /reqpair again.`, { parse_mode: 'HTML' }).catch(() => {});
                 const SYPaTH = `./Love/auth/${chatId}/${number}`;
                 if (fs.existsSync(SYPaTH)) fs.rmSync(SYPaTH, { recursive: true, force: true });
-            } else if (reason === DisconnectReason.timedOut) {
-                log('error', 'WhatsApp', `Timed out for ${number}. Reconnecting...`);
-                StartLovingSY(chatId, number, S7);
-            } else {
+            } else if (
+    reason === 405 ||
+    reason === DisconnectReason.connectionClosed ||
+    reason === DisconnectReason.timedOut
+) {
+    log('error', 'WhatsApp', `Connection closed for ${number}. Reconnecting in 5 seconds...`);
+
+    setTimeout(() => StartLovingSY(chatId, number, S7).catch((err) => {
+        log('error', 'WhatsApp', `Reconnect failed for ${number}: ${err.message}`);
+    }), 5000);
+} else {
+
                 await S7.sendMessage(chatId, `⚠️ <b>Connection Closed</b>\nNumber: ${number}\nReason: ${reason}`, { parse_mode: 'HTML' }).catch(() => {});
             }
         }
