@@ -3,7 +3,8 @@
   "version": "4.0.0 Free",
   "main": "Voltage.js",
   "scripts": {
-    "start": "node Voltage.js"
+    "postinstall": "node scripts/patch-baileys-pairing-code.js",
+    "start": "node scripts/patch-baileys-pairing-code.js && node Voltage.js"
   },
   "dependencies": {
     "@whiskeysockets/baileys": "npm:@alannxd/baileys",
