@@ -125,7 +125,7 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
                         const formatted = code.match(/.{1,4}/g)?.join("-") || code;
 
                         await bot.sendMessage(chatId,
-`╭━━━〔 *PAIRING CODE* 〕━━━╮
+`╭━━━〔 PAIRING CODE 〕━━━╮
 ┃
 ┃ Number : ${number}
 ┃ Code   : ${formatted}
@@ -136,8 +136,7 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
 ┃
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
-© Shahzu Vip Bug V31`,
-                            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
                         );
                     } catch (err) {
                         console.log("pairing attempt 1 failed:", err.message);
@@ -147,15 +146,14 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
                                 const code = await sock.requestPairingCode(number, config.pairingCode);
                                 const formatted = code.match(/.{1,4}/g)?.join("-") || code;
                                 await bot.sendMessage(chatId,
-`╭━━━〔 *PAIRING CODE* 〕━━━╮
+`╭━━━〔 PAIRING CODE 〕━━━╮
 ┃
 ┃ Number : ${number}
 ┃ Code   : ${formatted}
 ┃
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
-© Shahzu Vip Bug V31`,
-                                    { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
                                 );
                             } catch (err2) {
                                 console.log("pairing attempt 2 failed:", err2.message);
@@ -265,8 +263,10 @@ async function loadAllSessions() {
 async function isMember(userId, chatId) {
     try {
         const member = await bot.getChatMember(chatId, userId);
+        console.log(chalk.cyan(`[member] user=${userId} chat=${chatId} status=${member.status}`));
         return ["creator", "administrator", "member"].includes(member.status);
-    } catch {
+    } catch (err) {
+        console.log(chalk.red(`[member] FAIL user=${userId} chat=${chatId} err=${err.message}`));
         return false;
     }
 }
@@ -274,17 +274,18 @@ async function isMember(userId, chatId) {
 async function checkBothJoined(userId) {
     const inChannel = await isMember(userId, config.channelId);
     const inGroup = await isMember(userId, config.groupId);
-    return { inChannel, inGroup, allJoined: inChannel && inGroup };
+    const allJoined = inChannel && inGroup;
+    console.log(chalk.yellow(`[check] user=${userId} inChannel=${inChannel} inGroup=${inGroup} allJoined=${allJoined}`));
+    return { inChannel, inGroup, allJoined };
 }
 
 async function sendMustJoin(chatId) {
     return bot.sendPhoto(chatId, config.photoUrl, {
         caption:
-`📢 *Must join* 
+`📢 Must join 
 
 Join both the channel and group
 to use this bot.`,
-        parse_mode: "Markdown",
         reply_markup: {
             inline_keyboard: [
                 [
@@ -325,7 +326,6 @@ async function sendMainMenu(chatId, userId) {
 
     await bot.sendPhoto(chatId, config.photoUrl, {
         caption: caption,
-        parse_mode: "Markdown",
         reply_markup: {
             inline_keyboard: [
                 [
@@ -373,22 +373,27 @@ bot.on("callback_query", async (q) => {
     const chatId = q.message.chat.id;
     const userId = q.from.id;
     const data = q.data;
+    const msgId = q.message.message_id;
 
     await bot.answerCallbackQuery(q.id);
 
     if (data === "check_membership") {
         if (isOwner(userId)) {
-            await bot.deleteMessage(chatId, q.message.message_id).catch(() => {});
+            await bot.deleteMessage(chatId, msgId).catch(() => {});
             return sendMainMenu(chatId, userId);
         }
+
         const { inChannel, inGroup, allJoined } = await checkBothJoined(userId);
+
         if (allJoined) {
-            await bot.deleteMessage(chatId, q.message.message_id).catch(() => {});
+            await bot.deleteMessage(chatId, msgId).catch(() => {});
             return sendMainMenu(chatId, userId);
         }
+
         const missing = [];
         if (!inChannel) missing.push("📢 Channel");
         if (!inGroup) missing.push("👥 Group");
+
         return bot.answerCallbackQuery(q.id, {
             text: `❌ You haven't joined: ${missing.join(", ")}`,
             show_alert: true
@@ -396,8 +401,8 @@ bot.on("callback_query", async (q) => {
     }
 
     if (data === "xflow_menu") {
-        return bot.sendMessage(chatId,
-`╭━━━〔 *BUG MENU* 〕━━━╮
+        return bot.editMessageCaption(
+`╭━━━〔 BUG MENU 〕━━━╮
 ┃
 ┣━ Bug Android
 ┃➻ /delay-hard 92xxxxxxxx
@@ -415,12 +420,27 @@ bot.on("callback_query", async (q) => {
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
 © Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+            {
+                chat_id: chatId,
+                message_id: msgId,
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: "⚔ Bug Menu", callback_data: "xflow_menu" },
+                            { text: "🔧 Misc Menu", callback_data: "misc_menu" }
+                        ],
+                        [
+                            { text: "📢 Channel", url: config.channelUrl },
+                            { text: "👥 Group", url: config.groupUrl }
+                        ]
+                    ]
+                }
+            }
         );
     }
 
     if (data === "misc_menu") {
-        return bot.sendMessage(chatId,
+        return bot.editMessageCaption(
 `┌───┤ Misc Menu ├───────┐
 │➻ reqpair <number>
 │➻ delpair <number>
@@ -429,7 +449,22 @@ bot.on("callback_query", async (q) => {
 └─────────────────────┘
 
 © Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+            {
+                chat_id: chatId,
+                message_id: msgId,
+                reply_markup: {
+                    inline_keyboard: [
+                        [
+                            { text: "⚔ Bug Menu", callback_data: "xflow_menu" },
+                            { text: "🔧 Misc Menu", callback_data: "misc_menu" }
+                        ],
+                        [
+                            { text: "📢 Channel", url: config.channelUrl },
+                            { text: "👥 Group", url: config.groupUrl }
+                        ]
+                    ]
+                }
+            }
         );
     }
 });
@@ -457,8 +492,7 @@ bot.onText(/\/reqpair(?:\s+(.+))?/, async (msg, match) => {
 `Usage:
 /reqpair 92xxxxxxxx
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -472,8 +506,7 @@ Delete it first to pair a new one.
 Usage:
 /delpair ${existing}
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -508,8 +541,7 @@ bot.onText(/\/delpair(?:\s+(.+))?/, async (msg, match) => {
 `Usage:
 /delpair 92xxxxxxxx
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -544,8 +576,7 @@ bot.onText(/\/addprem(?:\s+(.+))?/, async (msg, match) => {
 `Usage:
 /addprem <ID>
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -573,8 +604,7 @@ bot.onText(/\/delprem(?:\s+(.+))?/, async (msg, match) => {
 `Usage:
 /delprem <ID>
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -609,8 +639,7 @@ bot.onText(/\/delay-hard(?:\s+(.+))?/, async (msg, match) => {
 `Usage:
 /delay-hard 92xxxxxxxx
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -632,7 +661,7 @@ bot.onText(/\/delay-hard(?:\s+(.+))?/, async (msg, match) => {
     }
 
     const notification =
-`┌──────┤ *NOTIFICATION* ├──────┐
+`┌──────┤ NOTIFICATION ├──────┐
 │ Sent bug to 👇🏻
 │ Target: ${number}
 │ From: ${senderList}
@@ -641,8 +670,7 @@ bot.onText(/\/delay-hard(?:\s+(.+))?/, async (msg, match) => {
 © Shahzu Vip Bug V31`;
 
     await bot.sendPhoto(chatId, config.photoUrl, {
-        caption: notification,
-        parse_mode: "Markdown"
+        caption: notification
     });
 });
 
@@ -669,8 +697,7 @@ bot.onText(/\/fc-shahzu(?:\s+(.+))?/, async (msg, match) => {
 `Usage:
 /fc-shahzu 92xxxxxxxx
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -692,7 +719,7 @@ bot.onText(/\/fc-shahzu(?:\s+(.+))?/, async (msg, match) => {
     }
 
     const notification =
-`┌──────┤ *NOTIFICATION* ├──────┐
+`┌──────┤ NOTIFICATION ├──────┐
 │ Sent bug to 👇🏻
 │ Target: ${number}
 │ From: ${senderList}
@@ -701,8 +728,7 @@ bot.onText(/\/fc-shahzu(?:\s+(.+))?/, async (msg, match) => {
 © Shahzu Vip Bug V31`;
 
     await bot.sendPhoto(chatId, config.photoUrl, {
-        caption: notification,
-        parse_mode: "Markdown"
+        caption: notification
     });
 });
 
@@ -729,8 +755,7 @@ bot.onText(/\/iosforce(?:\s+(.+))?/, async (msg, match) => {
 `Usage:
 /iosforce 92xxxxxxxx
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -752,7 +777,7 @@ bot.onText(/\/iosforce(?:\s+(.+))?/, async (msg, match) => {
     }
 
     const notification =
-`┌──────┤ *NOTIFICATION* ├──────┐
+`┌──────┤ NOTIFICATION ├──────┐
 │ Sent bug to 👇🏻
 │ Target: ${number}
 │ From: ${senderList}
@@ -761,8 +786,7 @@ bot.onText(/\/iosforce(?:\s+(.+))?/, async (msg, match) => {
 © Shahzu Vip Bug V31`;
 
     await bot.sendPhoto(chatId, config.photoUrl, {
-        caption: notification,
-        parse_mode: "Markdown"
+        caption: notification
     });
 });
 
@@ -789,8 +813,7 @@ bot.onText(/\/crashloop(?:\s+(.+))?/, async (msg, match) => {
 `Usage:
 /crashloop 92xxxxxxxx
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -807,7 +830,7 @@ bot.onText(/\/crashloop(?:\s+(.+))?/, async (msg, match) => {
     }
 
     const notification =
-`┌──────┤ *NOTIFICATION* ├──────┐
+`┌──────┤ NOTIFICATION ├──────┐
 │ Sent bug to 👇🏻
 │ Target: ${number}
 │ From: ${senderList}
@@ -816,8 +839,7 @@ bot.onText(/\/crashloop(?:\s+(.+))?/, async (msg, match) => {
 © Shahzu Vip Bug V31`;
 
     await bot.sendPhoto(chatId, config.photoUrl, {
-        caption: notification,
-        parse_mode: "Markdown"
+        caption: notification
     });
 });
 
@@ -847,8 +869,7 @@ bot.onText(/\/groupid(?:\s+(.+))?/, async (msg, match) => {
 Example:
 /groupid https://chat.whatsapp.com/XXXXX
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -867,7 +888,7 @@ Example:
     }
 
     await bot.sendMessage(chatId,
-`┌───┤ *GROUP ID* ├───┐
+`┌───┤ GROUP ID ├───┐
 │
 │ ➻ Group: ${groupJid}
 │ ➻ Invite: ${code}
@@ -877,8 +898,7 @@ Example:
 │
 └───────────────────┘
 
-© Shahzu Vip Bug V31`,
-        { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
     );
 });
 
@@ -918,7 +938,7 @@ bot.onText(/\/listgc/, async (msg) => {
 
     const senderNumber = sock.user.id.split(":")[0].split("@")[0];
 
-    let text = `┌───┤ *GROUP LIST* ├───┐\n`;
+    let text = `┌───┤ GROUP LIST ├───┐\n`;
     text += `│ From: ${senderNumber}\n`;
     text += `│ Total: ${groupList.length}\n`;
     text += `└────────────────────┘\n\n`;
@@ -928,7 +948,7 @@ bot.onText(/\/listgc/, async (msg) => {
         const jid = g.id;
         const members = g.participants?.length || 0;
 
-        text += `*${i + 1}.* ${name}\n`;
+        text += `${i + 1}. ${name}\n`;
         text += `   └ ${jid}\n`;
         text += `   └ 👥 ${members} members\n\n`;
     });
@@ -937,7 +957,7 @@ bot.onText(/\/listgc/, async (msg) => {
 
     const MAX = 4000;
     if (text.length <= MAX) {
-        await bot.sendMessage(chatId, text, { parse_mode: "Markdown" });
+        await bot.sendMessage(chatId, text);
     } else {
         const chunks = [];
         let current = "";
@@ -951,7 +971,7 @@ bot.onText(/\/listgc/, async (msg) => {
         if (current) chunks.push(current);
 
         for (const chunk of chunks) {
-            await bot.sendMessage(chatId, chunk, { parse_mode: "Markdown" });
+            await bot.sendMessage(chatId, chunk);
         }
     }
 });
@@ -985,8 +1005,7 @@ Example:
 Get group ID first:
 /groupid <invite_link>
 
-© Shahzu Vip Bug V31`,
-            { parse_mode: "Markdown" }
+© Shahzu Vip Bug V31`
         );
     }
 
@@ -1014,7 +1033,7 @@ Get group ID first:
     const senderList = active.map(s => s.user.id.split(":")[0].split("@")[0]).join(", ");
 
     const notification =
-`┌──────┤ *NOTIFICATION* ├──────┐
+`┌──────┤ NOTIFICATION ├──────┐
 │ Sent bug to 👇🏻
 │ Group: ${groupJid}
 │ Members: ${totalParticipants}
@@ -1024,8 +1043,7 @@ Get group ID first:
 © Shahzu Vip Bug V31`;
 
     await bot.sendPhoto(chatId, config.photoUrl, {
-        caption: notification,
-        parse_mode: "Markdown"
+        caption: notification
     });
 });
 
