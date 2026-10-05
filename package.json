@@ -1,22 +1,15 @@
 {
-  "name": "Voltage Death",
-  "version": "4.0.0 Free",
-  "main": "Voltage.js",
+  "name": "shahzu-vip-bug-v31",
+  "version": "1.0.0",
+  "main": "index.js",
   "scripts": {
-    "postinstall": "node scripts/patch-baileys-pairing-code.js",
-    "start": "node scripts/patch-baileys-pairing-code.js && node Voltage.js"
+    "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "npm:@alannxd/baileys",
-    "crypto": "^1.0.1",
+    "@sakataoffc/baileys": "^6.7.9",
+    "node-telegram-bot-api": "^0.66.0",
+    "pino": "^9.0.0",
     "chalk": "^4.1.2",
-    "dotenv": "^16.4.7",
-    "node-telegram-bot-api": "^0.64.0",
-    "jimp": "^1.6.1",
-    "pino": "^9.6.0"
-  },
-  "keywords": [],
-  "author": "Voltage",
-  "license": "ISC",
-  "description": "Voltage Death Create By @VtgZuxy"
+    "fs-extra": "^11.2.0"
+  }
 }
