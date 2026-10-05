@@ -1,6 +1,6 @@
 module.exports = {
-    botToken: "YOUR_TELEGRAM_BOT_TOKEN",
-    ownerId: 123456789,
+    botToken: "8975915905:AAHrkWjDV34Tk2PxD7OT5_Jj6GkE-hFT1hg",
+    ownerId: " 7297849559",
     ownerUsername: "@shahzu_404",
     botName: "Shahzu Vip Bug V31",
     photoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663935355513/JRugxLOLFRAeZyIW.png",
