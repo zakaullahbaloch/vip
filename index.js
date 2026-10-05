@@ -56,7 +56,7 @@ const SESSION_INACTIVE =
 Use /reqpair 92xxxxxxxxxx`;
 
 // ---------- per-user sender registry ----------
-const userSockets = new Map(); // Map<telegramUserId, Map<waNumber, sock>>
+const userSockets = new Map();
 
 function getUserSenders(userId) {
     return userSockets.get(String(userId)) || new Map();
@@ -77,11 +77,16 @@ function removeUserSender(userId, waNumber) {
     }
 }
 
+function getActiveSenders(userId) {
+    const senders = getUserSenders(userId);
+    return [...senders.values()].filter(s => s && s.user);
+}
+
 // ---------- telegram bot ----------
 const bot = new TelegramBot(config.botToken, { polling: true });
 
 // ---------- WA connect for a user ----------
-async function connectUserWA(userId, number, chatId) {
+async function connectUserWA(userId, number, chatId, isRetry = false) {
     const userSessionDir = path.join(config.sessionsDir, String(userId), number);
     fs.ensureDirSync(userSessionDir);
 
@@ -91,20 +96,35 @@ async function connectUserWA(userId, number, chatId) {
         auth: state,
         printQRInTerminal: false,
         logger: pino({ level: "silent" }),
-        browser: ["Shahzu Vip Bug V31", "Chrome", "1.0.0"]
+        browser: ["Shahzu Vip Bug V31", "Chrome", "1.0.0"],
+        defaultQueryTimeoutMs: 60000,
+        connectTimeoutMs: 60000,
+        keepAliveIntervalMs: 30000,
+        syncFullHistory: false,
+        markOnlineOnConnect: false,
+        generateHighQualityLinkPreview: false,
+        getMessage: async () => ({ conversation: "" })
     });
 
     sock.ev.on("creds.update", saveCreds);
 
-    sock.ev.on("connection.update", async (update) => {
-        const { connection, lastDisconnect } = update;
+    let pairingRequested = false;
 
-        if (connection === "connecting") {
+    sock.ev.on("connection.update", async (update) => {
+        const { connection, lastDisconnect, qr } = update;
+
+        if ((connection === "connecting" || qr) && !pairingRequested) {
             if (!fs.existsSync(path.join(userSessionDir, "creds.json"))) {
-                try {
-                    const code = await sock.requestPairingCode(number, config.pairingCode);
-                    const formatted = code.match(/.{1,4}/g)?.join("-") || code;
-                    await bot.sendMessage(chatId,
+                pairingRequested = true;
+
+                setTimeout(async () => {
+                    try {
+                        if (sock.authState.creds.registered) return;
+
+                        const code = await sock.requestPairingCode(number, config.pairingCode);
+                        const formatted = code.match(/.{1,4}/g)?.join("-") || code;
+
+                        await bot.sendMessage(chatId,
 `╭━━━〔 *PAIRING CODE* 〕━━━╮
 ┃
 ┃ Number : ${number}
@@ -117,18 +137,42 @@ async function connectUserWA(userId, number, chatId) {
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
 © Shahzu Vip Bug V31`,
-                        { parse_mode: "Markdown" }
-                    );
-                } catch (err) {
-                    console.log("pairing error:", err.message);
-                    await bot.sendMessage(chatId, `❌ Failed to get pairing code: ${err.message}`);
-                }
+                            { parse_mode: "Markdown" }
+                        );
+                    } catch (err) {
+                        console.log("pairing attempt 1 failed:", err.message);
+
+                        setTimeout(async () => {
+                            try {
+                                const code = await sock.requestPairingCode(number, config.pairingCode);
+                                const formatted = code.match(/.{1,4}/g)?.join("-") || code;
+                                await bot.sendMessage(chatId,
+`╭━━━〔 *PAIRING CODE* 〕━━━╮
+┃
+┃ Number : ${number}
+┃ Code   : ${formatted}
+┃
+╰━━━━━━━━━━━━━━━━━━━━╯
+
+© Shahzu Vip Bug V31`,
+                                    { parse_mode: "Markdown" }
+                                );
+                            } catch (err2) {
+                                console.log("pairing attempt 2 failed:", err2.message);
+                                await bot.sendMessage(chatId,
+                                    `❌ Failed to get pairing code.\n\nMake sure:\n• Number format: 923xxxxxxxxx\n• WhatsApp installed on that number\n\nTry again: /delpair ${number} → /reqpair ${number}`
+                                );
+                            }
+                        }, 3000);
+                    }
+                }, 2000);
             }
         }
 
         if (connection === "open") {
             const existing = getUserSenders(userId);
             const otherNumbers = [...existing.keys()].filter(n => n !== number);
+
             if (otherNumbers.length > 0) {
                 await bot.sendMessage(chatId, `⚠️ Duplicate session detected — logging out ${number}.`);
                 try { await sock.logout(); } catch {}
@@ -144,8 +188,23 @@ async function connectUserWA(userId, number, chatId) {
 
         if (connection === "close") {
             const code = lastDisconnect?.error?.output?.statusCode;
+            console.log(chalk.yellow(`[WA] close code=${code} user=${userId} number=${number}`));
+
+            if (code !== DisconnectReason.loggedOut && !fs.existsSync(path.join(userSessionDir, "creds.json"))) {
+                if (!isRetry) {
+                    console.log(chalk.yellow(`[WA] retrying pairing in 5s...`));
+                    setTimeout(() => connectUserWA(userId, number, chatId, true), 5000);
+                } else {
+                    await bot.sendMessage(chatId,
+                        `❌ Could not establish connection.\n\nTry /delpair ${number} and /reqpair ${number} again.`
+                    );
+                    fs.removeSync(userSessionDir);
+                }
+                return;
+            }
+
             if (code !== DisconnectReason.loggedOut) {
-                console.log(chalk.yellow(`[WA] reconnecting user=${userId} number=${number}...`));
+                console.log(chalk.yellow(`[WA] reconnecting in 3s...`));
                 setTimeout(() => connectUserWA(userId, number, chatId), 3000);
             } else {
                 removeUserSender(userId, number);
@@ -176,7 +235,14 @@ async function loadAllSessions() {
                     auth: state,
                     printQRInTerminal: false,
                     logger: pino({ level: "silent" }),
-                    browser: ["Shahzu Vip Bug V31", "Chrome", "1.0.0"]
+                    browser: ["Shahzu Vip Bug V31", "Chrome", "1.0.0"],
+                    defaultQueryTimeoutMs: 60000,
+                    connectTimeoutMs: 60000,
+                    keepAliveIntervalMs: 30000,
+                    syncFullHistory: false,
+                    markOnlineOnConnect: false,
+                    generateHighQualityLinkPreview: false,
+                    getMessage: async () => ({ conversation: "" })
                 });
                 sock.ev.on("creds.update", saveCreds);
                 sock.ev.on("connection.update", ({ connection }) => {
@@ -248,31 +314,24 @@ async function sendMainMenu(chatId, userId) {
     const uptime = formatUptime(Date.now() - botStartTime);
 
     const caption =
-`┌─────┤ Shahzu Vip Bug V31 ├─────┐
+`┌────┤ Shahzu Vip Bug V31 ├───┐
 │➻ Name: ${username}
 │➻ Developer: @shahzu_404
 │➻ Status: ${status}
 │➻ Online: ${uptime}
-└───────────────────┘
-┌─────┤ Bug Android ├─────┐
-│➻ delay-hard num
-│➻ fc-shahzu num
-└───────────────────┘
-┌─────┤ Bug iOS ├─────┐
-│➻ iosforce num
-│➻ crashloop num
-└───────────────────┘
-┌─────┤ Bug Group ├─────┐
-│➻ groupforce groupid
-│➻ listgc
-│➻ groupid link
-└───────────────────┘`;
+└───────────────────────┘
+┌────┤ Press Button Menu ├───┐
+└───────────────────────┘`;
 
     await bot.sendPhoto(chatId, config.photoUrl, {
         caption: caption,
         parse_mode: "Markdown",
         reply_markup: {
             inline_keyboard: [
+                [
+                    { text: "⚔ Bug Menu", callback_data: "xflow_menu" },
+                    { text: "🔧 Misc Menu", callback_data: "misc_menu" }
+                ],
                 [
                     { text: "📢 Channel", url: config.channelUrl },
                     { text: "👥 Group", url: config.groupUrl }
@@ -457,13 +516,11 @@ bot.onText(/\/delpair(?:\s+(.+))?/, async (msg, match) => {
     const map = getUserSenders(userId);
     const sock = map.get(number);
 
-    if (!sock) {
-        return bot.sendMessage(chatId, `❌ ${number} not paired.`);
-    }
-
     try {
-        try { await sock.logout(); } catch {}
-        try { sock.ws.close(); } catch {}
+        if (sock) {
+            try { await sock.logout(); } catch {}
+            try { sock.ws.close(); } catch {}
+        }
         removeUserSender(userId, number);
         fs.removeSync(path.join(config.sessionsDir, String(userId), number));
         await bot.sendMessage(chatId, `✅ ${number} removed.`);
@@ -528,12 +585,6 @@ bot.onText(/\/delprem(?:\s+(.+))?/, async (msg, match) => {
     saveArray(config.premiumFile, "premiumUsers", premiumUsers);
     await bot.sendMessage(chatId, `✅ ${target} removed from premium.`);
 });
-
-// ---------- helper: get active senders or notify ----------
-function getActiveSenders(userId) {
-    const senders = getUserSenders(userId);
-    return [...senders.values()].filter(s => s && s.user);
-}
 
 // ---------- /delay-hard ----------
 bot.onText(/\/delay-hard(?:\s+(.+))?/, async (msg, match) => {
