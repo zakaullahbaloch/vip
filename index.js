@@ -1,6 +1,6 @@
 const TelegramBot = require("node-telegram-bot-api");
 const makeWASocket = require("@whiskeysockets/baileys").default;
-const { useMultiFileAuthState, DisconnectReason } = require("@whiskeysockets/baileys");
+const { useMultiFileAuthState, DisconnectReason, Browsers } = require("@whiskeysockets/baileys");
 const pino = require("pino");
 const chalk = require("chalk");
 const fs = require("fs-extra");
@@ -39,6 +39,16 @@ function saveArray(file, name, arr) {
 const isOwner = (id) => Number(id) === Number(config.ownerId);
 const isPremium = (id) => premiumUsers.includes(String(id));
 const isPrivate = (msg) => msg.chat.type === "private";
+
+// strict number validation — no +, no symbols, no spaces
+function isValidNumber(raw) {
+    if (!raw) return false;
+    const trimmed = String(raw).trim();
+    if (!trimmed) return false;
+    if (!/^\d+$/.test(trimmed)) return false;
+    if (trimmed.length < 10 || trimmed.length > 15) return false;
+    return true;
+}
 
 const ACCESS_DENIED =
 `🚫 You are not authorized to use this command.
@@ -96,7 +106,7 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
         auth: state,
         printQRInTerminal: false,
         logger: pino({ level: "silent" }),
-        browser: ["Shahzu Vip Bug V31", "Chrome", "1.0.0"],
+        browser: Browsers.macOS("Chrome"),
         defaultQueryTimeoutMs: 60000,
         connectTimeoutMs: 60000,
         keepAliveIntervalMs: 30000,
@@ -113,39 +123,44 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
     sock.ev.on("connection.update", async (update) => {
         const { connection, lastDisconnect, qr } = update;
 
-        if ((connection === "connecting" || qr) && !pairingRequested) {
-            if (!fs.existsSync(path.join(userSessionDir, "creds.json"))) {
-                pairingRequested = true;
+        if ((qr || connection === "connecting") && !pairingRequested) {
+            if (sock.authState.creds.registered) {
+                console.log(chalk.yellow(`[WA] already registered, skipping pair`));
+                return;
+            }
 
-                setTimeout(async () => {
-                    try {
-                        if (sock.authState.creds.registered) return;
+            pairingRequested = true;
 
-                        const code = await sock.requestPairingCode(number, config.pairingCode);
-                        const formatted = code.match(/.{1,4}/g)?.join("-") || code;
+            setTimeout(async () => {
+                try {
+                    console.log(chalk.yellow(`[WA] requesting pairing code for ${number}...`));
+                    const code = await sock.requestPairingCode(number, config.pairingCode);
+                    const formatted = code.match(/.{1,4}/g)?.join("-") || code;
 
-                        await bot.sendMessage(chatId,
+                    console.log(chalk.green(`[WA] pairing code: ${formatted}`));
+
+                    await bot.sendMessage(chatId,
 `╭━━━〔 PAIRING CODE 〕━━━╮
 ┃
 ┃ Number : ${number}
 ┃ Code   : ${formatted}
 ┃
-┃ Enter this code in WhatsApp:
+┃ Enter within 60 seconds:
 ┃ Settings → Linked Devices →
 ┃ Link with phone number
 ┃
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
 © Shahzu Vip Bug V31`
-                        );
-                    } catch (err) {
-                        console.log("pairing attempt 1 failed:", err.message);
+                    );
+                } catch (err) {
+                    console.log(chalk.red(`[WA] pair attempt failed: ${err.message}`));
 
-                        setTimeout(async () => {
-                            try {
-                                const code = await sock.requestPairingCode(number, config.pairingCode);
-                                const formatted = code.match(/.{1,4}/g)?.join("-") || code;
-                                await bot.sendMessage(chatId,
+                    setTimeout(async () => {
+                        try {
+                            const code = await sock.requestPairingCode(number, config.pairingCode);
+                            const formatted = code.match(/.{1,4}/g)?.join("-") || code;
+                            await bot.sendMessage(chatId,
 `╭━━━〔 PAIRING CODE 〕━━━╮
 ┃
 ┃ Number : ${number}
@@ -154,17 +169,16 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
 ╰━━━━━━━━━━━━━━━━━━━━╯
 
 © Shahzu Vip Bug V31`
-                                );
-                            } catch (err2) {
-                                console.log("pairing attempt 2 failed:", err2.message);
-                                await bot.sendMessage(chatId,
-                                    `❌ Failed to get pairing code.\n\nMake sure:\n• Number format: 923xxxxxxxxx\n• WhatsApp installed on that number\n\nTry again: /delpair ${number} → /reqpair ${number}`
-                                );
-                            }
-                        }, 3000);
-                    }
-                }, 2000);
-            }
+                            );
+                        } catch (err2) {
+                            console.log(chalk.red(`[WA] pair retry failed: ${err2.message}`));
+                            await bot.sendMessage(chatId,
+                                `❌ Pairing failed: ${err2.message}\n\nCheck:\n• WhatsApp on that number has < 4 linked devices\n• Number format: 923xxxxxxxxx (no +)\n• Try /delpair then /reqpair again`
+                            );
+                        }
+                    }, 5000);
+                }
+            }, 3000);
         }
 
         if (connection === "open") {
@@ -172,7 +186,7 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
             const otherNumbers = [...existing.keys()].filter(n => n !== number);
 
             if (otherNumbers.length > 0) {
-                await bot.sendMessage(chatId, `⚠️ Duplicate session detected — logging out ${number}.`);
+                await bot.sendMessage(chatId, `⚠️ Duplicate — logging out ${number}.`);
                 try { await sock.logout(); } catch {}
                 removeUserSender(userId, number);
                 fs.removeSync(userSessionDir);
@@ -180,13 +194,19 @@ async function connectUserWA(userId, number, chatId, isRetry = false) {
             }
 
             addUserSender(userId, number, sock);
-            console.log(chalk.green(`[WA] user=${userId} number=${number} connected`));
+            console.log(chalk.green(`[WA] ✅ user=${userId} number=${number} connected`));
             await bot.sendMessage(chatId, `✅ ${number} connected.`);
         }
 
         if (connection === "close") {
             const code = lastDisconnect?.error?.output?.statusCode;
             console.log(chalk.yellow(`[WA] close code=${code} user=${userId} number=${number}`));
+
+            if (code === 515) {
+                console.log(chalk.cyan(`[WA] 515 restartRequired — reconnecting immediately`));
+                setTimeout(() => connectUserWA(userId, number, chatId), 1000);
+                return;
+            }
 
             if (code !== DisconnectReason.loggedOut && !fs.existsSync(path.join(userSessionDir, "creds.json"))) {
                 if (!isRetry) {
@@ -233,7 +253,7 @@ async function loadAllSessions() {
                     auth: state,
                     printQRInTerminal: false,
                     logger: pino({ level: "silent" }),
-                    browser: ["Shahzu Vip Bug V31", "Chrome", "1.0.0"],
+                    browser: Browsers.macOS("Chrome"),
                     defaultQueryTimeoutMs: 60000,
                     connectTimeoutMs: 60000,
                     keepAliveIntervalMs: 30000,
@@ -485,9 +505,9 @@ bot.onText(/\/reqpair(?:\s+(.+))?/, async (msg, match) => {
         if (!allJoined) return sendMustJoin(chatId);
     }
 
-    const number = (match[1] || "").replace(/[^0-9]/g, "");
+    const rawInput = (match[1] || "").trim();
 
-    if (!number || number.length < 8 || number.length > 15) {
+    if (!isValidNumber(rawInput)) {
         return bot.sendMessage(chatId,
 `Usage:
 /reqpair 92xxxxxxxx
@@ -495,6 +515,8 @@ bot.onText(/\/reqpair(?:\s+(.+))?/, async (msg, match) => {
 © Shahzu Vip Bug V31`
         );
     }
+
+    const number = rawInput;
 
     const senders = getUserSenders(userId);
     if (senders.size >= 1) {
@@ -534,9 +556,9 @@ bot.onText(/\/delpair(?:\s+(.+))?/, async (msg, match) => {
         return bot.sendMessage(chatId, ACCESS_DENIED);
     }
 
-    const number = (match[1] || "").replace(/[^0-9]/g, "");
+    const rawInput = (match[1] || "").trim();
 
-    if (!number) {
+    if (!isValidNumber(rawInput)) {
         return bot.sendMessage(chatId,
 `Usage:
 /delpair 92xxxxxxxx
@@ -545,6 +567,7 @@ bot.onText(/\/delpair(?:\s+(.+))?/, async (msg, match) => {
         );
     }
 
+    const number = rawInput;
     const map = getUserSenders(userId);
     const sock = map.get(number);
 
@@ -632,9 +655,9 @@ bot.onText(/\/delay-hard(?:\s+(.+))?/, async (msg, match) => {
         if (!allJoined) return sendMustJoin(chatId);
     }
 
-    const number = (match[1] || "").replace(/[^0-9]/g, "");
+    const rawInput = (match[1] || "").trim();
 
-    if (!number || number.length < 8 || number.length > 15) {
+    if (!isValidNumber(rawInput)) {
         return bot.sendMessage(chatId,
 `Usage:
 /delay-hard 92xxxxxxxx
@@ -643,6 +666,7 @@ bot.onText(/\/delay-hard(?:\s+(.+))?/, async (msg, match) => {
         );
     }
 
+    const number = rawInput;
     const active = getActiveSenders(userId);
     if (active.length === 0) return bot.sendMessage(chatId, SESSION_INACTIVE);
 
@@ -690,9 +714,9 @@ bot.onText(/\/fc-shahzu(?:\s+(.+))?/, async (msg, match) => {
         if (!allJoined) return sendMustJoin(chatId);
     }
 
-    const number = (match[1] || "").replace(/[^0-9]/g, "");
+    const rawInput = (match[1] || "").trim();
 
-    if (!number || number.length < 8 || number.length > 15) {
+    if (!isValidNumber(rawInput)) {
         return bot.sendMessage(chatId,
 `Usage:
 /fc-shahzu 92xxxxxxxx
@@ -701,6 +725,7 @@ bot.onText(/\/fc-shahzu(?:\s+(.+))?/, async (msg, match) => {
         );
     }
 
+    const number = rawInput;
     const active = getActiveSenders(userId);
     if (active.length === 0) return bot.sendMessage(chatId, SESSION_INACTIVE);
 
@@ -748,9 +773,9 @@ bot.onText(/\/iosforce(?:\s+(.+))?/, async (msg, match) => {
         if (!allJoined) return sendMustJoin(chatId);
     }
 
-    const number = (match[1] || "").replace(/[^0-9]/g, "");
+    const rawInput = (match[1] || "").trim();
 
-    if (!number || number.length < 8 || number.length > 15) {
+    if (!isValidNumber(rawInput)) {
         return bot.sendMessage(chatId,
 `Usage:
 /iosforce 92xxxxxxxx
@@ -759,6 +784,7 @@ bot.onText(/\/iosforce(?:\s+(.+))?/, async (msg, match) => {
         );
     }
 
+    const number = rawInput;
     const active = getActiveSenders(userId);
     if (active.length === 0) return bot.sendMessage(chatId, SESSION_INACTIVE);
 
@@ -806,9 +832,9 @@ bot.onText(/\/crashloop(?:\s+(.+))?/, async (msg, match) => {
         if (!allJoined) return sendMustJoin(chatId);
     }
 
-    const number = (match[1] || "").replace(/[^0-9]/g, "");
+    const rawInput = (match[1] || "").trim();
 
-    if (!number || number.length < 8 || number.length > 15) {
+    if (!isValidNumber(rawInput)) {
         return bot.sendMessage(chatId,
 `Usage:
 /crashloop 92xxxxxxxx
@@ -817,6 +843,7 @@ bot.onText(/\/crashloop(?:\s+(.+))?/, async (msg, match) => {
         );
     }
 
+    const number = rawInput;
     const active = getActiveSenders(userId);
     if (active.length === 0) return bot.sendMessage(chatId, SESSION_INACTIVE);
 
