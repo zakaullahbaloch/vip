@@ -1,4 +1,4 @@
-const { generateWAMessageFromContent, proto } = require("@sakataoffc/baileys");
+const { generateWAMessageFromContent, proto } = require("@whiskeysockets/baileys");
 const crypto = require("crypto");
 
 async function forceandro(sock, target) {
