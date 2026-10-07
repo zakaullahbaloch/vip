@@ -90,7 +90,16 @@ function getActiveSenders(userId) {
 }
 
 // ---------- telegram bot ----------
+if (!config.botToken) {
+    console.error("Missing TELEGRAM_BOT_TOKEN environment variable.");
+    process.exit(1);
+}
+
 const bot = new TelegramBot(config.botToken, { polling: true });
+bot.on("polling_error", (err) => {
+    const message = String(err?.message || err).replaceAll(config.botToken, "[REDACTED]");
+    console.error("[Telegram polling error]", message);
+});
 
 // ---------- WA connect ----------
 async function connectUserWA(userId, number, chatId, isRetry = false) {

@@ -1,5 +1,5 @@
 module.exports = {
-    botToken: "8975915905:AAHrkWjDV34Tk2PxD7OT5_Jj6GkE-hFT1hg",
+    botToken: process.env.TELEGRAM_BOT_TOKEN || "",
     ownerId: "7297849559",
     ownerUsername: "@shahzu_404",
     botName: "Shahzu Vip Bug V31",
