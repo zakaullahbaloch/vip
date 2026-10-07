@@ -1,6 +1,6 @@
 const TelegramBot = require("node-telegram-bot-api");
 const makeWASocket = require("@whiskeysockets/baileys").default;
-const { useMultiFileAuthState, DisconnectReason, Browsers } = require("@whiskeysockets/baileys");
+const { useMultiFileAuthState } = require("@whiskeysockets/baileys");
 const pino = require("pino");
 const chalk = require("chalk");
 const fs = require("fs-extra");
