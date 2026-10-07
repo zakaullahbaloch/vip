@@ -1,23 +1,22 @@
 {
-  "name": "Kintana-JS 🚀",
-  "version": "3.0",
-  "main": "kintana.js",
-  "scripts": {
-    "start": "node kintana.js"
-  },
-  "dependencies": {
-    "@whiskeysockets/baileys": "6.7.24",
-    "axios": "^1.9.0",
-    "cheerio": "^1.0.0",
-    "dotenv": "^16.4.7",
-    "node-fetch": "^2.6.1",
-    "node-telegram-bot-api": "^0.64.0",
-    "pino": "^9.6.0",
-    "form-data": "latest",
-    "yt-search": "^2.13.1"
-  },
-  "keywords": [],
-  "author": "HeySaka Official ID",
-  "license": "ISC",
-  "description": "Create By HeySaka Official ID"
+    "name": "A T O M I C",
+    "version": "8.0.0",
+    "description": "@AboutAmbalabu",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "@whiskeysockets/baileys": "github:xwarxviii/baileys",
+        "axios": "^1.6.0",
+        "body-parser": "^1.20.3",
+         "fs": "latest",
+        "chalk": "^4.1.2",
+        "pino": "^9.5.0",
+        "@octokit/rest": "latest",
+        "readline-sync": "^1.4.10",
+        "telegraf": "^4.16.3",
+        "crypto": "latest",
+        "moment-timezone": "latest"
+    }
 }
