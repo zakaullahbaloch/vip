@@ -6,10 +6,9 @@
     "start": "node kintana.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "github:qwerty-xcv/Baileys",
+    "@whiskeysockets/baileys": "6.7.24",
     "axios": "^1.9.0",
     "cheerio": "^1.0.0",
-    "crypto": "^1.0.1",
     "dotenv": "^16.4.7",
     "node-fetch": "^2.6.1",
     "node-telegram-bot-api": "^0.64.0",
