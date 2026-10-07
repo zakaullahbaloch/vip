@@ -6,6 +6,7 @@
     "start": "node index.js"
   },
   "dependencies" {
-  "@whiskeysockets/baileys": "npm:xzvexpzcbailey@3.2.0",
+  "@whiskeysockets/baileys": 
+  "npm:xzvexpzcbailey@3.2.0",
  "jimp": "^1.6.1"
   }
