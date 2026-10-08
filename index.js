@@ -87,6 +87,27 @@ function log(type, category, ...message) {
 }
 
 // ==========================================
+// LOGO SANITIZER — fix "Unsupported URL protocol"
+// ==========================================
+function isValidTelegramPhoto(src) {
+    if (!src) return false;
+    const s = String(src).trim();
+    if (s.length === 0) return false;
+    // HTTP/HTTPS URL
+    if (/^https?:\/\//i.test(s)) return true;
+    // Telegram file_id (starts with these prefixes)
+    if (/^(AgAC|BAAC|BQAC|CgAC|AwAC|AQAD|AgAD)/.test(s)) return true;
+    return false;
+}
+
+function sanitizeLogo(src) {
+    if (!src) return null;
+    const s = String(src).replace(/[\u200B-\u200D\uFEFF\s]+$/g, '').replace(/^[\u200B-\u200D\uFEFF\s]+/g, '').trim();
+    if (!isValidTelegramPhoto(s)) return null;
+    return s;
+}
+
+// ==========================================
 // DATABASE — DECLARED EARLY (TDZ FIX)
 // ==========================================
 const LoveDir = './Love';
@@ -713,7 +734,7 @@ function startSYloveBot(token) {
         let botConfig = {
             channel: config.channel,
             group: config.group,
-            logo: config.logo,
+            logo: sanitizeLogo(config.logo),   // ✅ sanitized
             botName: config.bot,
             ownerContact: config.S7,
             protection: true,
@@ -724,12 +745,17 @@ function startSYloveBot(token) {
         if (tokenData && tokenData.config) {
             if (tokenData.config.channel) botConfig.channel = tokenData.config.channel;
             if (tokenData.config.group) botConfig.group = tokenData.config.group;
-            if (tokenData.config.logo) botConfig.logo = tokenData.config.logo;
+            if (tokenData.config.logo) botConfig.logo = sanitizeLogo(tokenData.config.logo);
             if (tokenData.config.botName) botConfig.botName = tokenData.config.botName;
             if (tokenData.config.ownerContact) botConfig.ownerContact = tokenData.config.ownerContact;
             if (tokenData.config.protectionState !== undefined) botConfig.protection = tokenData.config.protectionState;
             if (tokenData.config.channelId) botConfig.channelId = tokenData.config.channelId;
             if (tokenData.config.groupId) botConfig.groupId = tokenData.config.groupId;
+        }
+
+        // Log if logo is invalid
+        if (!botConfig.logo && config.logo) {
+            log('warn', 'LOGO', 'Logo URL invalid — text mode enabled. Config logo: ' + String(config.logo).slice(0, 60));
         }
 
         const botOwnerId = tokenData ? tokenData.owner : config.adminId;
@@ -750,6 +776,27 @@ function startSYloveBot(token) {
             if (error.code !== 'EFATAL') return;
             log('error', 'POLLING', error.message);
         });
+
+        // ==========================================
+        // SAFE PHOTO SENDER — auto fallback to text
+        // ==========================================
+        const sendPhotoSafe = async (chatId, caption, opts = {}) => {
+            if (botConfig.logo && isValidTelegramPhoto(botConfig.logo)) {
+                try {
+                    return await S7.sendPhoto(chatId, botConfig.logo, {
+                        caption,
+                        parse_mode: 'HTML',
+                        ...opts,
+                    });
+                } catch (e) {
+                    log('warn', 'PHOTO', 'logo failed: ' + e.message + ' — falling back to text');
+                }
+            }
+            return S7.sendMessage(chatId, caption, {
+                parse_mode: 'HTML',
+                ...opts,
+            });
+        };
 
         function VOIDSEC() {
             return {
@@ -858,10 +905,16 @@ function startSYloveBot(token) {
             const love = msg.from.id.toString();
             const status = GetSYLoVe(love);
 
-            const sticker = await S7.sendSticker(chatId, 'CAACAgUAAxkBAAEhJBdqbV5tQEackJRmNQnQys2TP8fljwACkRYAAvDBAVYExm1e84EYcz0E');
+            let stickerId = null;
+            try {
+                const sticker = await S7.sendSticker(chatId, 'CAACAgUAAxkBAAEhJBdqbV5tQEackJRmNQnQys2TP8fljwACkRYAAvDBAVYExm1e84EYcz0E');
+                stickerId = sticker.message_id;
+            } catch (e) {
+                log('warn', 'START', 'sticker failed: ' + e.message);
+            }
 
-            setTimeout(async () => {
-                await S7.deleteMessage(chatId, sticker.message_id).catch(() => {});
+            const sendMenu = async () => {
+                if (stickerId) await S7.deleteMessage(chatId, stickerId).catch(() => {});
 
                 const captionText = `
 <blockquote><b><tg-emoji emoji-id="5197429921634346862">✨</tg-emoji>R A J U -  V I P B O T</b></blockquote>
@@ -872,17 +925,10 @@ function startSYloveBot(token) {
 </b></blockquote>
 <blockquote><b><tg-emoji emoji-id="5433758796289685818">👑</tg-emoji>Click The Buttons Bellow</b></blockquote>`;
 
-                S7.sendPhoto(chatId, botConfig.logo, {
-                    caption: captionText,
-                    parse_mode: 'HTML',
-                    ...SABIR7718
-                }).catch(() => {
-                    S7.sendMessage(chatId, captionText, {
-                        parse_mode: 'HTML',
-                        ...SABIR7718
-                    });
-                });
-            }, 1000);
+                await sendPhotoSafe(chatId, captionText, SABIR7718);
+            };
+
+            setTimeout(sendMenu, 1000);
         });
 
         SYLoVe('setbot', async (msg) => {
@@ -1763,7 +1809,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
                     throw new Error(`Function not found in ${s7CM}.js`);
                 }
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
             } catch (err) {
                 log('error', `${s7CM}`, err.message);
                 S7.sendMessage(chatId, `<tg-emoji emoji-id="5974083768233760323">✖️</tg-emoji> Error: ${err.message}`, { parse_mode: 'HTML' });
@@ -1849,7 +1895,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${targetJid} via ${senderNum} [${getUserTier(userId)>=3?'GLOBAL':'OWN'}]`);
 
                 const SYLovesCap = BvgSYLoVe(targetJid);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLovesCap, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLovesCap);
 
                 try {
                     if (typeof FrezeIOS === 'function') {
@@ -1892,7 +1938,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -1947,7 +1993,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -2002,7 +2048,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -2054,7 +2100,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum} [${getUserTier(userId)>=3?'GLOBAL':'OWN'}]`);
                 const SYLovesCap = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLovesCap, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLovesCap);
                 const delayMs = 2000;
                 if (args[2] === 'only') {
                     const count = parseInt(args[3]);
@@ -2104,7 +2150,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -2159,7 +2205,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -2214,7 +2260,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -2269,7 +2315,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -2324,7 +2370,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -2379,7 +2425,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -2434,7 +2480,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -2489,7 +2535,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 2000;
 
                 if (args[2] === 'only') {
@@ -2544,7 +2590,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
 
                 if (args[2] === 'only') {
                     const count = parseInt(args[3]);
@@ -2601,7 +2647,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             try {
                 log('command', msg.from.first_name, `Calling ${s7CM} on ${cleanTarget} via ${senderNum}`);
                 const SYLoves = BvgSYLoVe(cleanTarget);
-                await S7.sendPhoto(chatId, botConfig.logo, { caption: SYLoves, parse_mode: 'HTML' });
+                await sendPhotoSafe(chatId, SYLoves);
                 const delayMs = 500;
 
                 if (args[2] === 'only') {
@@ -2851,7 +2897,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
         });
 
         // ==========================================
-        // CALLBACK QUERY HANDLER — FIXED
+        // CALLBACK QUERY HANDLER
         // ==========================================
         S7.on('callback_query', async (query) => {
             const chatId = query.message.chat.id;
@@ -2862,7 +2908,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             const uptime = getRuntime();
             const love = userId.toString();
 
-            // ✅ ALWAYS answer callback first — clears spinner
+            // Always answer callback first
             S7.answerCallbackQuery(query.id).catch(() => {});
 
             const S7edit = async (text, opts) => {
