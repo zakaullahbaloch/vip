@@ -1,0 +1,18 @@
+{
+  "state": 1,
+  "tokens": [],
+  "premium": [
+  ],
+  "premiumExpiry": {
+  },
+  "resellers": [],
+  "svip": [
+    "7297849559"
+  ],
+  "svipExpiry": {
+    "7073350551": 1798387285007
+  },
+  "groupPremium": {},
+  "groupSvip": {},
+  "globalSender": false
+}
