@@ -87,8 +87,7 @@ function log(type, category, ...message) {
 }
 
 // ==========================================
-// DATABASE — DECLARED EARLY (fixes TDZ error)
-// getDB must exist before any setTimeout/setInterval fires
+// DATABASE — DECLARED EARLY (TDZ FIX)
 // ==========================================
 const LoveDir = './Love';
 if (!fs.existsSync(LoveDir)) {
@@ -2851,6 +2850,9 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             }
         });
 
+        // ==========================================
+        // CALLBACK QUERY HANDLER — FIXED
+        // ==========================================
         S7.on('callback_query', async (query) => {
             const chatId = query.message.chat.id;
             const messageId = query.message.message_id;
@@ -2859,16 +2861,32 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
             const name = query.from.username ? `@${query.from.username}` : query.from.first_name;
             const uptime = getRuntime();
             const love = userId.toString();
-            const S7edit = (text, opts) => {
-                S7.editMessageCaption(text, opts).catch((err) => {
-                    if (!err.message.includes('message is not modified')) {
-                        log('error', 'SYSTEM', err.message);
+
+            // ✅ ALWAYS answer callback first — clears spinner
+            S7.answerCallbackQuery(query.id).catch(() => {});
+
+            const S7edit = async (text, opts) => {
+                try {
+                    await S7.editMessageCaption(text, opts);
+                } catch (err) {
+                    const msg = err.message || '';
+                    if (msg.includes('message is not modified')) return;
+                    try {
+                        await S7.editMessageText(text, opts);
+                    } catch (e2) {
+                        const msg2 = e2.message || '';
+                        if (msg2.includes('message is not modified')) return;
+                        try { await S7.deleteMessage(opts.chat_id, opts.message_id); } catch {}
+                        S7.sendMessage(opts.chat_id, text, {
+                            parse_mode: 'HTML',
+                            reply_markup: opts.reply_markup,
+                        }).catch(() => {});
                     }
-                });
+                }
             };
+
             if (data === 'check_membership') {
                 const isMember = await CheckSYlovesToo(S7, userId, botConfig.channelId, botConfig.groupId, botOwnerId);
-
                 if (isMember) {
                     S7.deleteMessage(chatId, messageId).catch(() => {});
                     S7.sendMessage(chatId,
@@ -2879,17 +2897,15 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
                     S7.answerCallbackQuery(query.id, {
                         text: '❌ You have not joined both the Channel and Group yet!',
                         show_alert: true
-                    });
+                    }).catch(() => {});
                 }
+                return;
             }
 
             if (data === 'misc_menu') {
-                const chatId = query.message.chat.id;
-                const userId = query.from.id.toString();
                 if (!LoveGlobalState(userId, chatId)) {
                     return sendSYLove(S7, chatId);
                 }
-                const love = query.from.id.toString();
                 const miscText = MainSYLoVe(name, uptime, love, botConfig.botName, botConfig.ownerContact) + `<blockquote><b><tg-emoji emoji-id="5231200819986047254">📊</tg-emoji> Misc Menu</b></blockquote>
 <blockquote><b><tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /reqpair number <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
 <tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /delpair number <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
@@ -2911,16 +2927,14 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
 <tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /broadcast <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji>
 <tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /state 0 | 1 /global on/off <tg-emoji emoji-id="6032742198179532882">⚙</tg-emoji></b></blockquote>
                 `;
-                S7edit(miscText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
+                await S7edit(miscText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
+                return;
             }
 
             if (data === 'bug_menu') {
-                const chatId = query.message.chat.id;
-                const userId = query.from.id.toString();
                 if (!LoveGlobalState(userId, chatId)) {
                     return sendSYLove(S7, chatId);
                 }
-                const love = query.from.id.toString();
                 const bugText = MainSYLoVe(name, uptime, love, botConfig.botName, botConfig.ownerContact) + `<blockquote><b><tg-emoji emoji-id="5454008471873669821">🤖</tg-emoji> Bug Android (SVIP=Global Sender)</b></blockquote>
 <blockquote><b><tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /forceclose num time <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
 <tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /forceinfinity num time <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
@@ -2936,7 +2950,8 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
 <tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /listsender — global pool <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji>
 <tg-emoji emoji-id="5260450573768990626">➡️</tg-emoji> /groupid link <tg-emoji emoji-id="5332656211034652890">📞</tg-emoji></b></blockquote>
 <blockquote><b>💎 SVIP</b> → use Global Sender without pairing\n<b>🏆 Group Premium</b> → bot active in group using global senders</blockquote>`;
-                S7edit(bugText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
+                await S7edit(bugText, { chat_id: chatId, message_id: messageId, parse_mode: 'HTML', ...SABIR7718 });
+                return;
             }
 
             if (data.startsWith('copy_jid_')) {
@@ -2944,7 +2959,7 @@ All bugs now support <b>Global Senders</b> for SVIP/GroupPremium
                 await S7.answerCallbackQuery(query.id, {
                     text: 'JID copied to clipboard!',
                     show_alert: false
-                });
+                }).catch(() => {});
             }
         });
 
