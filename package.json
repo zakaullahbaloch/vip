@@ -1,21 +1,18 @@
 {
-  "name": "A T O M I C",
-  "version": "8.0.0",
-  "description": "@AboutAmbalabu",
-  "main": "index.js",
+  "name": "SHAHZU-VIP-BUG",
+  "author": "Raju",
   "scripts": {
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "6.7.24",
-    "libsignal": "6.0.0",
-    "axios": "^1.6.0",
-    "body-parser": "^1.20.3",
-    "chalk": "^4.1.2",
-    "pino": "^9.5.0",
-    "@octokit/rest": "latest",
-    "readline-sync": "^1.4.10",
-    "telegraf": "^4.16.3",
-    "moment-timezone": "latest"
+    "@sakataoffc/baileys": "^7.0.0",
+    "chalk": "^5.6.2",
+    "crypto": "^1.0.1",
+    "jimp": "^1.6.1",
+    "libsignal": "^6.0.0",
+    "node-cache": "^5.1.2",
+    "node-telegram-bot-api": "^0.67.0",
+    "pino": "^10.3.0",
+    "whatsapp-rust-bridge": "^0.5.4"
   }
 }
