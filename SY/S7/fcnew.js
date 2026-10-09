@@ -1,4 +1,4 @@
-const { proto } = require('@sakataoffc/baileys');
+const { proto } = require('@whiskeysockets/baileys');
 const crypto = require('crypto');
 
 // =============================================================
