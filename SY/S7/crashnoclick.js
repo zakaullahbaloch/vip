@@ -1,4 +1,4 @@
-const { default: makeWASocket, useMultiFileAuthState, Browsers, proto, delay, DisconnectReason, makeCacheableSignalKeyStore, generateWAMessageFromContent } = require('@sakataoffc/baileys');
+const { default: makeWASocket, useMultiFileAuthState, Browsers, proto, delay, DisconnectReason, makeCacheableSignalKeyStore, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
 const pino = require('pino');
 const crypto = require('crypto');
 
