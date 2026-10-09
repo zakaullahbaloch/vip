@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "node-telegram-bot-api": "^0.66.0",
-    "@whiskeysockets/baileys": "npm:xzvexpzcbailey@3.2.0",
+    "@whiskeysockets/baileys": "6.7.18",
     "jimp": "^1.6.1",
     "node-cache": "^5.1.2",
     "pino": "^9.5.0",
