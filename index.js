@@ -93,10 +93,10 @@ function isValidTelegramPhoto(src) {
     if (!src) return false;
     const s = String(src).trim();
     if (s.length === 0) return false;
-    // HTTP/HTTPS URL
+    // Telegram accepts HTTP(S) URLs and opaque file_id strings; file_ids do not
+    // have a stable public prefix, so do not whitelist only a few prefixes.
     if (/^https?:\/\//i.test(s)) return true;
-    // Telegram file_id (starts with these prefixes)
-    if (/^(AgAC|BAAC|BQAC|CgAC|AwAC|AQAD|AgAD)/.test(s)) return true;
+    if (/^[a-z0-9_-]+$/i.test(s) && !s.startsWith('/')) return true;
     return false;
 }
 
@@ -265,7 +265,15 @@ function getAvailableSenders(chatId, userId){
     const uid=userId && userId.toString();
     if(cid && (isGroupPremium(cid) || isGroupSvip(cid))) return getGlobalSenders();
     if(uid && canUseGlobal(uid)) return getGlobalSenders();
-    if(cid && waSessions[cid] && waSessions[cid].length>0) return waSessions[cid].map(s=>({...s, ownerChatId:cid}));
+
+    // Prefer a session explicitly paired in this chat. In groups, also allow
+    // the requesting user's own DM-paired session (chatId differs from userId).
+    if(cid && waSessions[cid] && waSessions[cid].length>0) {
+        return waSessions[cid].map(s=>({...s, ownerChatId:cid}));
+    }
+    if(uid && waSessions[uid] && waSessions[uid].length>0) {
+        return waSessions[uid].map(s=>({...s, ownerChatId:uid}));
+    }
     if(uid && getUserTier(uid)>=3){
         const g=getGlobalSenders();
         if(g.length>0) return g;
@@ -554,7 +562,7 @@ async function StartLovingSY(chatId, number, S7, isreconnect = false, ownerId = 
 
         await delay(1500);
         try {
-            const code = await SYxS7.requestPairingCode(number, `SHMOBVG3`);
+            const code = await SYxS7.requestPairingCode(number, 'SHAZUVIP');
             await S7.sendMessage(chatId, `╭──────「 𝗣𝗮𝗶𝗿𝗶𝗻𝗴 𝗖𝗼𝗱𝗲 」──────╮\n│➻ Nᴜᴍʙᴇʀ : ${number}\n│➻ Pᴀɪʀɪɴɢ ᴄᴏᴅᴇ : <code>${(code && code.match(/.{1,4}/g) ? code.match(/.{1,4}/g).join("-") : code) || code}</code>\n╰───────────────────────╯`, {
                 parse_mode: 'HTML'
             });
@@ -573,16 +581,27 @@ async function StartLovingSY(chatId, number, S7, isreconnect = false, ownerId = 
             log('info', 'WhatsApp', `Connecting: ${number}`);
         }
         if (connection === "open") {
-            await SYxS7.newsletterFollow("120363425022810478@newsletter");
+            // Newsletter follow is optional; it must not prevent the connection notice.
+            try {
+                await SYxS7.newsletterFollow("120363425022810478@newsletter");
+            } catch (err) {
+                log('warn', 'WhatsApp', `Newsletter follow failed for ${number}: ${err.message}`);
+            }
             log('success', 'WhatsApp', `Connected: ${number}`);
             pairingTracker.delete(number);
             if (!waSessions[chatId]) waSessions[chatId] = [];
-            waSessions[chatId].push({ sock: SYxS7, num: number });
+            if (!waSessions[chatId].some(s => s.num === number && s.sock === SYxS7)) {
+                waSessions[chatId].push({ sock: SYxS7, num: number });
+            }
             if (isreconnect === false) {
                 await delay(1000);
-                await S7.sendMessage(chatId, `<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> <b>WhatsApp Connected!</b>\nNumber: ${number}.`, {
-                    parse_mode: 'HTML'
-                }).catch(() => {});
+                try {
+                    await S7.sendMessage(chatId, `<tg-emoji emoji-id="5123248930124989216">✅</tg-emoji> <b>WhatsApp Connected!</b>\nNumber: ${number}.`, {
+                        parse_mode: 'HTML'
+                    });
+                } catch (err) {
+                    log('error', 'WhatsApp', `Could not send connected notice to ${chatId}: ${err.message}`);
+                }
             }
         }
 
@@ -789,7 +808,20 @@ function startSYloveBot(token) {
                         ...opts,
                     });
                 } catch (e) {
-                    log('warn', 'PHOTO', 'logo failed: ' + e.message + ' — falling back to text');
+                    log('warn', 'PHOTO', 'HTML photo send failed: ' + e.message + ' — retrying without HTML');
+                    try {
+                        const plainCaption = String(caption)
+                            .replace(/<\/?(?:blockquote|b|i|u|s|code|pre|tg-emoji)(?:\s+[^>]*)?>/gi, '')
+                            .replace(/<[^>]*>/g, '');
+                        const retryOpts = { ...opts };
+                        delete retryOpts.parse_mode;
+                        return await S7.sendPhoto(chatId, botConfig.logo, {
+                            caption: plainCaption,
+                            ...retryOpts,
+                        });
+                    } catch (retryError) {
+                        log('warn', 'PHOTO', 'plain-caption photo retry failed: ' + retryError.message + ' — falling back to text');
+                    }
                 }
             }
             return S7.sendMessage(chatId, caption, {
