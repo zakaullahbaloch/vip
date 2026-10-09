@@ -1,4 +1,4 @@
-const { proto, generateWAMessage, generateWAMessageFromContent } = require('@sakataoffc/baileys');
+const { proto, generateWAMessage, generateWAMessageFromContent } = require('@whiskeysockets/baileys');
 
 async function ghostdelay(sock, target) {
     const LexMsg = {
