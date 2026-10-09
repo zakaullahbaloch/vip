@@ -52,7 +52,7 @@ const {
     fetchLatestBaileysVersion,
     groupGetInviteInfo,
     generateWAMessageFromContent
-} = require('@sakataoffc/baileys');
+} = require('@whiskeysockets/baileys');
 const pino = require('pino');
 let phoneNumber = "6288268145069";
 const pairingCode = !!phoneNumber;
