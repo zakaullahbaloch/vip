@@ -1,7 +1,7 @@
 const {
     proto,
     generateWAMessageFromContent,
-} = require('@sakataoffc/baileys');
+} = require('@whiskeysockets/baileys');
 const crypto = require('crypto');
 
 // =============================================================
