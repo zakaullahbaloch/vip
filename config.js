@@ -3,7 +3,7 @@ module.exports = {
 
   EMAIL_CONFIG: {
     user: 'shahzuking@gmail.com',
-    pass: 'shahzu15'
+    pass: 'abcdefghijklmnop'
   },
 
   REPORT_EMAIL: [
