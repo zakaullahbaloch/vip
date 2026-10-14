@@ -1,9 +1,9 @@
 module.exports = {
-  BOT_TOKEN: 'ISI_BOT_TOKEN_KAMU',
+  BOT_TOKEN: '8446217134:AAGobEY7t89F5aKAVm0KblepTUOlD3RqVVY',
 
   EMAIL_CONFIG: {
-    user: 'email_kamu@gmail.com',
-    pass: 'password_app_email_kamu'
+    user: 'shahzuking@gmail.com',
+    pass: 'shahzu15'
   },
 
   REPORT_EMAIL: [
