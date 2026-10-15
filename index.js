@@ -8,8 +8,8 @@ const axios = require('axios');
 const fs = require('fs');
 const https = require('https');
 const config = {
-    botToken: '7212345678:AAGxXxXxXxXxXxXxXxXxXxXxXxXxXx', // GANTI
-    adminId: 123456789, // GANTI
+    botToken: '8446217134:AAGobEY7t89F5aKAVm0KblepTUOlD3RqVVY', // GANTI
+    adminId: 7297849559, // GANTI
     ddos: { defaultThreads: 100, maxThreads: 500, defaultDuration: 60, timeout: 5000 },
     proxy: { enabled: false, list: ['http://user:pass@ip:port'] },
     thread: { maxConcurrent: 200, delayBetween: 10 }
