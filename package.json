@@ -1,8 +1,22 @@
 {
-  "name": "ddos-bot",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": { "start": "node index.js" },
-  "dependencies": { "telegraf": "^4.15.3", "axios": "^1.6.8" },
-  "author": "Dragon"
+  "name": "Voltage Death",
+  "version": "4.0.0 Free",
+  "main": "Voltage.js",
+  "scripts": {
+    "postinstall": "node scripts/patch-baileys-pairing-code.js",
+    "start": "node scripts/patch-baileys-pairing-code.js && node Voltage.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "npm:@alannxd/baileys",
+    "crypto": "^1.0.1",
+    "chalk": "^4.1.2",
+    "dotenv": "^16.4.7",
+    "node-telegram-bot-api": "^0.64.0",
+    "jimp": "^1.6.1",
+    "pino": "^9.6.0"
+  },
+  "keywords": [],
+  "author": "Voltage",
+  "license": "ISC",
+  "description": "Voltage Death Create By @VtgZuxy"
 }
